@@ -40,8 +40,10 @@
     }
     if (e.code === 'Enter') {
       if (!startScreen.classList.contains('hidden')) startGame();
-      else if (!stageClearScreen.classList.contains('hidden')) goNextStage();
-      else if (!gameOverScreen.classList.contains('hidden')) restartGame();
+      else if (!stageClearScreen.classList.contains('hidden')) {
+        if (game.stage >= MAX_STAGE) restartGame();
+        else goNextStage();
+      } else if (!gameOverScreen.classList.contains('hidden')) restartGame();
     }
   });
 
@@ -51,8 +53,13 @@
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') weaponTogglePressed = false;
   });
 
+  const stageClearBtn = document.getElementById('next-stage-btn');
+
   document.getElementById('start-btn').addEventListener('click', startGame);
-  document.getElementById('next-stage-btn').addEventListener('click', goNextStage);
+  stageClearBtn.addEventListener('click', () => {
+    if (game.stage >= MAX_STAGE) restartGame();
+    else goNextStage();
+  });
   document.getElementById('restart-btn').addEventListener('click', restartGame);
 
   const game = {
@@ -72,19 +79,23 @@
     startScreen.classList.add('hidden');
     game.stage = 1;
     game.score = 0;
+    game.timeLeft = timeLimitForStage(1); // 전체 누적 시간 풀 시작
     startStage(game.stage);
   }
 
   function goNextStage() {
     stageClearScreen.classList.add('hidden');
     game.stage++;
+    game.timeLeft += timeLimitForStage(game.stage); // 초기화 대신 누적 추가
     startStage(game.stage);
   }
 
   function restartGame() {
     gameOverScreen.classList.add('hidden');
+    stageClearScreen.classList.add('hidden');
     game.stage = 1;
     game.score = 0;
+    game.timeLeft = timeLimitForStage(1);
     startStage(game.stage);
   }
 
@@ -96,7 +107,6 @@
     game.bullets = [];
     game.items = [];
     game.enemiesToSpawn = enemiesForStage(stage);
-    game.timeLeft = timeLimitForStage(stage);
     game.state = 'PLAYING';
     spawnWave();
   }
@@ -118,9 +128,31 @@
         const cell = open[Math.floor(Math.random() * open.length)];
         candidate = { x: cell.c * TILE + TILE / 2, y: cell.r * TILE + TILE / 2 };
       }
-      game.enemies.push(new Enemy(candidate.x, candidate.y));
+      game.enemies.push(new Enemy(candidate.x, candidate.y, pickEnemyKind(game.stage)));
       game.enemiesToSpawn--;
     }
+  }
+
+  // 특수탄약이 없고, 남은 적이 전부 스폰되었는데 벽에 막혀 아무 데도 닿을 수 없으면 고립으로 판정
+  function isPlayerTrapped() {
+    const player = game.player;
+    if (player.specialAmmo > 0) return false;
+    if (game.enemiesToSpawn > 0) return false;
+    if (game.enemies.length === 0) return false;
+
+    const pr = Math.floor(player.y / TILE);
+    const pc = Math.floor(player.x / TILE);
+    const reachable = floodFillOpen(game.grid, pr, pc);
+
+    const key = (x, y) => Math.floor(y / TILE) + ',' + Math.floor(x / TILE);
+
+    const enemyReachable = game.enemies.some((e) => reachable.has(key(e.x, e.y)));
+    if (enemyReachable) return false;
+
+    const ammoItemReachable = game.items.some((i) => i.type === 'ammo' && reachable.has(key(i.x, i.y)));
+    if (ammoItemReachable) return false;
+
+    return true;
   }
 
   function tryDropItem(x, y, chance) {
@@ -170,7 +202,7 @@
       if (cell === WALL_SOLID) {
         bullet.alive = false;
       } else if (cell === WALL_BREAKABLE) {
-        if (bullet.type === 'special') destroyWallAt(bullet.x, bullet.y);
+        if (bullet.breaksWalls) destroyWallAt(bullet.x, bullet.y);
         bullet.alive = false;
       }
       if (!bullet.alive) continue;
@@ -217,6 +249,11 @@
       return;
     }
 
+    if (isPlayerTrapped()) {
+      triggerGameOver('trapped');
+      return;
+    }
+
     if (game.enemiesToSpawn <= 0 && game.enemies.length === 0) {
       triggerStageClear();
     }
@@ -226,15 +263,26 @@
     game.state = 'STAGE_CLEAR';
     const bonus = Math.round(game.timeLeft * TIME_BONUS_PER_SEC);
     game.score += bonus;
-    stageClearInfo.innerHTML =
-      `스테이지 ${game.stage} 클리어!<br/>남은 시간 보너스: +${bonus}<br/>현재 점수: ${game.score}`;
+
+    if (game.stage >= MAX_STAGE) {
+      stageClearInfo.innerHTML =
+        `🏆 전체 ${MAX_STAGE}스테이지를 모두 클리어했습니다!<br/>최종 점수: ${game.score}`;
+      stageClearBtn.textContent = '처음부터 다시';
+    } else {
+      stageClearInfo.innerHTML =
+        `스테이지 ${game.stage} 클리어!<br/>남은 시간 보너스: +${bonus}<br/>누적 시간: ${Math.ceil(game.timeLeft)}s<br/>현재 점수: ${game.score}`;
+      stageClearBtn.textContent = '다음 스테이지';
+    }
     stageClearScreen.classList.remove('hidden');
   }
 
   function triggerGameOver(reason) {
     game.state = 'GAME_OVER';
     gameOverTitle.textContent = 'GAME OVER';
-    const reasonText = reason === 'time' ? '제한시간 초과' : '에너지 소진';
+    const reasonText =
+      reason === 'time' ? '전체 제한시간 초과' :
+      reason === 'trapped' ? '특수탄약 소진 - 더 이상 나아갈 수 없음' :
+      '에너지 소진';
     gameOverInfo.innerHTML = `${reasonText}<br/>도달 스테이지: ${game.stage}<br/>최종 점수: ${game.score}`;
     gameOverScreen.classList.remove('hidden');
   }
@@ -275,7 +323,11 @@
     ctx.textAlign = 'left';
     ctx.fillStyle = game.player.weapon === 'special' ? '#ffd23f' : '#e8ecf4';
     const weaponLabel = game.player.weapon === 'special' ? '특수' : '일반';
-    ctx.fillText(`무기: ${weaponLabel}  탄약: ${game.player.specialAmmo}`, 12, bottomY);
+    const weaponText = `무기: ${weaponLabel}`;
+    ctx.fillText(weaponText, 12, bottomY);
+    const weaponWidth = ctx.measureText(weaponText).width;
+    ctx.fillStyle = '#ffd23f';
+    ctx.fillText(`특수탄 ${game.player.specialAmmo}`, 12 + weaponWidth + 14, bottomY);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8ecf4';

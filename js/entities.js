@@ -62,7 +62,10 @@ class Player {
     const speed = type === 'special' ? BULLET_SPEED_SPECIAL : BULLET_SPEED_NORMAL;
     const bx = this.x + Math.cos(this.angle) * (this.radius + 6);
     const by = this.y + Math.sin(this.angle) * (this.radius + 6);
-    return new Bullet(bx, by, Math.cos(this.angle) * speed, Math.sin(this.angle) * speed, type, 'player');
+    return new Bullet(
+      bx, by, Math.cos(this.angle) * speed, Math.sin(this.angle) * speed,
+      type, 'player', type === 'special'
+    );
   }
 
   takeHit() {
@@ -88,15 +91,17 @@ class Player {
 
 // 적 탱크
 class Enemy {
-  constructor(x, y) {
+  constructor(x, y, kind) {
     this.x = x;
     this.y = y;
+    this.kind = kind || 'basic';
+    this.stats = ENEMY_KINDS[this.kind];
     this.angle = Math.random() * Math.PI * 2;
     this.radius = ENEMY_RADIUS;
-    this.speed = ENEMY_SPEED;
+    this.speed = this.stats.speed;
     this.hp = 1;
     this.state = 'patrol';
-    this.fireCooldown = ENEMY_FIRE_COOLDOWN * Math.random();
+    this.fireCooldown = this.stats.fireCooldown * Math.random();
     this.wanderTimer = 0;
     this.dir = { x: 0, y: 0 };
     this.alive = true;
@@ -105,7 +110,7 @@ class Enemy {
   update(dt, player, grid, bullets) {
     if (!this.alive) return;
     const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
-    this.state = player.alive && distToPlayer < ENEMY_DETECT_RANGE ? 'chase' : 'patrol';
+    this.state = player.alive && distToPlayer < this.stats.detectRange ? 'chase' : 'patrol';
 
     let dx = 0;
     let dy = 0;
@@ -146,19 +151,30 @@ class Enemy {
     }
     if (!moved && this.state === 'patrol') this.wanderTimer = 0; // 막히면 다음 프레임에 새 방향 선택
 
+    // 돌격형: 근접 시 직접 접촉 피해
+    if (this.stats.contactDamage && this.state === 'chase' && distToPlayer < this.radius + player.radius) {
+      player.takeHit();
+    }
+
     this.fireCooldown -= dt;
-    if (this.state === 'chase' && distToPlayer < ENEMY_FIRE_RANGE && this.fireCooldown <= 0) {
-      this.fireCooldown = ENEMY_FIRE_COOLDOWN;
+    if (
+      this.stats.fireRange > 0 &&
+      this.state === 'chase' &&
+      distToPlayer < this.stats.fireRange &&
+      this.fireCooldown <= 0
+    ) {
+      this.fireCooldown = this.stats.fireCooldown;
       const bx = this.x + Math.cos(this.angle) * (this.radius + 6);
       const by = this.y + Math.sin(this.angle) * (this.radius + 6);
       bullets.push(
         new Bullet(
           bx,
           by,
-          Math.cos(this.angle) * ENEMY_BULLET_SPEED,
-          Math.sin(this.angle) * ENEMY_BULLET_SPEED,
+          Math.cos(this.angle) * this.stats.bulletSpeed,
+          Math.sin(this.angle) * this.stats.bulletSpeed,
           'normal',
-          'enemy'
+          'enemy',
+          this.stats.breaksWalls
         )
       );
     }
@@ -170,7 +186,7 @@ class Enemy {
   }
 
   draw(ctx) {
-    drawTankShape(ctx, this.x, this.y, this.angle, '#e85555', '#8a2727');
+    drawTankShape(ctx, this.x, this.y, this.angle, this.stats.color, this.stats.colorDark);
   }
 }
 
@@ -181,31 +197,32 @@ function drawTankShape(ctx, x, y, angle, bodyColor, darkColor) {
   ctx.fillStyle = bodyColor;
   ctx.strokeStyle = darkColor;
   ctx.lineWidth = 2;
-  ctx.fillRect(-12, -9, 24, 18);
-  ctx.strokeRect(-12, -9, 24, 18);
+  ctx.fillRect(-15, -11, 30, 22);
+  ctx.strokeRect(-15, -11, 30, 22);
   ctx.fillStyle = darkColor;
-  ctx.fillRect(-9, -12, 18, 4);
-  ctx.fillRect(-9, 8, 18, 4);
+  ctx.fillRect(-11, -15, 22, 5);
+  ctx.fillRect(-11, 10, 22, 5);
   ctx.fillStyle = bodyColor;
   ctx.beginPath();
-  ctx.arc(0, 0, 8, 0, Math.PI * 2);
+  ctx.arc(0, 0, 10, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = darkColor;
   ctx.stroke();
   ctx.fillStyle = darkColor;
-  ctx.fillRect(0, -2.5, 16, 5);
+  ctx.fillRect(0, -3, 19, 6);
   ctx.restore();
 }
 
 // 미사일
 class Bullet {
-  constructor(x, y, vx, vy, type, owner) {
+  constructor(x, y, vx, vy, type, owner, breaksWalls) {
     this.x = x;
     this.y = y;
     this.vx = vx;
     this.vy = vy;
     this.type = type; // 'normal' | 'special'
     this.owner = owner; // 'player' | 'enemy'
+    this.breaksWalls = breaksWalls || type === 'special'; // 벽 파괴 가능 여부
     this.radius = BULLET_RADIUS;
     this.alive = true;
   }
@@ -217,7 +234,10 @@ class Bullet {
   }
 
   draw(ctx) {
-    ctx.fillStyle = this.owner === 'player' ? (this.type === 'special' ? '#ffd23f' : '#ffffff') : '#ff8a3d';
+    let color;
+    if (this.owner === 'player') color = this.type === 'special' ? '#ffd23f' : '#ffffff';
+    else color = this.breaksWalls ? '#3ddad0' : '#ff8a3d';
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();

@@ -8,18 +8,19 @@
 </head>
 <body>
   <div id="game-wrap">
-    <h1>탱크 아케이드 <span>프로토타입 v0.1</span></h1>
+    <h1>탱크 아케이드 <span>프로토타입 v0.2</span></h1>
     <div id="stage-container">
       <canvas id="game-canvas"></canvas>
 
       <div id="start-screen" class="overlay">
         <h2>탱크 아케이드</h2>
-        <p>미로 벽을 부수고 길을 뚫어 적을 모두 소탕하세요!</p>
+        <p>미로 벽을 부수고 길을 뚫어 적을 모두 소탕하세요! (총 100스테이지)</p>
         <ul class="controls-list">
           <li><b>이동</b> : 방향키 / WASD</li>
           <li><b>일반 미사일 발사</b> : Space</li>
           <li><b>무기 전환</b> (일반 ↔ 특수 파괴탄) : Shift</li>
-          <li><b>목표</b> : 제한시간 내 모든 적 처치, 벽을 부숴 길을 만드세요</li>
+          <li><b>목표</b> : 전체 제한시간 내 모든 적 처치, 벽을 부숴 길을 만드세요</li>
+          <li><b>주의</b> : 특수탄이 없는 채로 벽에 갇히면 즉시 게임오버됩니다</li>
         </ul>
         <button id="start-btn">게임 시작</button>
       </div>
@@ -36,7 +37,7 @@
         <button id="restart-btn">다시 시작</button>
       </div>
     </div>
-    <p class="hint">※ 특수 미사일(노란탄)은 벽과 적을 모두 파괴하지만 탄약이 제한되어 있습니다. 벽/적 파괴 시 확률적으로 아이템이 드랍됩니다.</p>
+    <p class="hint">※ 특수 미사일(노란탄)은 벽과 적을 모두 파괴하지만 탄약이 제한되어 있습니다(수량 표시됨). 벽/적 파괴 시 확률적으로 아이템이 드랍됩니다. 스테이지 11부터 저격형(보라)·돌격형(주황)·벽파괴형(청록) 적이 섞여 등장합니다.</p>
   </div>
 
   <script src="js/constants.js"></script>

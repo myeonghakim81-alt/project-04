@@ -80,6 +80,27 @@ function circleHitsWall(grid, x, y, radius) {
   return false;
 }
 
+// 특수탄 없이 (벽을 부수지 않고) 도달 가능한 칸 집합을 반환 (고립 판정용)
+function floodFillOpen(grid, startR, startC) {
+  const key = (r, c) => r + ',' + c;
+  const visited = new Set([key(startR, startC)]);
+  const stack = [[startR, startC]];
+  while (stack.length) {
+    const [r, c] = stack.pop();
+    const neighbors = [
+      [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1],
+    ];
+    for (const [nr, nc] of neighbors) {
+      if (nr < 0 || nc < 0 || nr >= ROWS || nc >= COLS) continue;
+      const k = key(nr, nc);
+      if (visited.has(k) || grid[nr][nc] !== WALL_NONE) continue;
+      visited.add(k);
+      stack.push([nr, nc]);
+    }
+  }
+  return visited;
+}
+
 function listOpenCells(grid) {
   const cells = [];
   for (let r = 1; r < ROWS - 1; r++) {
