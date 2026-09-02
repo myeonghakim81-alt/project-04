@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>탱크 아케이드 - 프로토타입</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrap">
+    <h1>탱크 아케이드 <span>프로토타입 v0.1</span></h1>
+    <div id="stage-container">
+      <canvas id="game-canvas"></canvas>
+
+      <div id="start-screen" class="overlay">
+        <h2>탱크 아케이드</h2>
+        <p>미로 벽을 부수고 길을 뚫어 적을 모두 소탕하세요!</p>
+        <ul class="controls-list">
+          <li><b>이동</b> : 방향키 / WASD</li>
+          <li><b>일반 미사일 발사</b> : Space</li>
+          <li><b>무기 전환</b> (일반 ↔ 특수 파괴탄) : Shift</li>
+          <li><b>목표</b> : 제한시간 내 모든 적 처치, 벽을 부숴 길을 만드세요</li>
+        </ul>
+        <button id="start-btn">게임 시작</button>
+      </div>
+
+      <div id="stageclear-screen" class="overlay hidden">
+        <h2>STAGE CLEAR!</h2>
+        <p id="stageclear-info"></p>
+        <button id="next-stage-btn">다음 스테이지</button>
+      </div>
+
+      <div id="gameover-screen" class="overlay hidden">
+        <h2 id="gameover-title">GAME OVER</h2>
+        <p id="gameover-info"></p>
+        <button id="restart-btn">다시 시작</button>
+      </div>
+    </div>
+    <p class="hint">※ 특수 미사일(노란탄)은 벽과 적을 모두 파괴하지만 탄약이 제한되어 있습니다. 벽/적 파괴 시 확률적으로 아이템이 드랍됩니다.</p>
+  </div>
+
+  <script src="js/constants.js"></script>
+  <script src="js/maze.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
