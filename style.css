@@ -48,7 +48,6 @@ h1 span {
   border-radius: 8px;
   box-shadow: 0 0 40px rgba(70, 130, 255, 0.15);
   overflow: hidden;
-  line-height: 0;
 }
 
 canvas {
@@ -135,6 +134,116 @@ button:active {
   margin: 4px 0 14px;
   font-size: 12px;
   color: #7c8399;
+}
+
+/* ---- 타이틀 화면 ---- */
+.title-overlay {
+  background: linear-gradient(180deg, rgba(8, 10, 18, 0.15) 0%, rgba(8, 10, 18, 0.65) 100%);
+  cursor: pointer;
+  justify-content: flex-end;
+  padding-bottom: 60px;
+}
+
+.title-logo {
+  font-size: 40px;
+  letter-spacing: 4px;
+  color: #3ddc84;
+  text-shadow: 0 0 24px rgba(61, 220, 132, 0.6), 0 2px 0 #1f7a44;
+  margin: 0 0 10px;
+}
+
+.title-prompt {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: #e8ecf4;
+  animation: title-blink 1.6s ease-in-out infinite;
+}
+
+@keyframes title-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-prompt {
+    animation: none;
+  }
+}
+
+/* ---- 난이도 선택 화면 ---- */
+#difficulty-screen {
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding-top: 24px;
+}
+
+.difficulty-cards {
+  display: flex;
+  gap: 12px;
+  margin: 6px 0 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.diff-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 130px;
+  padding: 16px 10px;
+  background: #11151f;
+  border: 2px solid #3a4361;
+  border-radius: 10px;
+  color: #e8ecf4;
+  font-weight: normal;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.diff-card:hover {
+  transform: translateY(-2px);
+  background: #11151f;
+}
+
+.diff-card[data-diff="easy"] { border-color: #1f7a44; }
+.diff-card[data-diff="easy"]:hover { border-color: #4be08a; }
+.diff-card[data-diff="normal"] { border-color: #a97e00; }
+.diff-card[data-diff="normal"]:hover { border-color: #ffd23f; }
+.diff-card[data-diff="hard"] { border-color: #8a2727; }
+.diff-card[data-diff="hard"]:hover { border-color: #ff5d5d; }
+
+.diff-name {
+  font-size: 17px;
+  font-weight: bold;
+}
+
+.diff-card[data-diff="easy"] .diff-name { color: #4be08a; }
+.diff-card[data-diff="normal"] .diff-name { color: #ffd23f; }
+.diff-card[data-diff="hard"] .diff-name { color: #ff5d5d; }
+
+.diff-desc {
+  font-size: 11px;
+  color: #8b93a7;
+  line-height: 1.5;
+}
+
+/* ---- 게임오버 버튼 ---- */
+.gameover-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+button.secondary {
+  background: #ffd23f;
+}
+
+button.secondary:hover {
+  background: #ffdd6b;
+}
+
+#continue-btn.hidden {
+  display: none;
 }
 
 .control-panel {

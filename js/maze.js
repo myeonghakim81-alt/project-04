@@ -10,7 +10,8 @@ function mulberry32(seed) {
   };
 }
 
-function createMaze(seed) {
+function createMaze(seed, density) {
+  const wallDensity = density === undefined ? WALL_DENSITY : density;
   const rng = mulberry32(seed);
   const grid = [];
   for (let r = 0; r < ROWS; r++) {
@@ -21,7 +22,7 @@ function createMaze(seed) {
       const isPillar = r % 2 === 0 && c % 2 === 0;
       if (isBorder || isPillar) {
         cell = WALL_SOLID;
-      } else if (rng() < WALL_DENSITY) {
+      } else if (rng() < wallDensity) {
         cell = WALL_BREAKABLE;
       }
       row.push(cell);

@@ -1,15 +1,15 @@
 // 플레이어 탱크
 class Player {
-  constructor(x, y) {
+  constructor(x, y, maxEnergy, startSpecialAmmo) {
     this.x = x;
     this.y = y;
     this.angle = 0;
     this.radius = PLAYER_RADIUS;
     this.speed = PLAYER_SPEED;
-    this.energy = PLAYER_MAX_ENERGY;
-    this.maxEnergy = PLAYER_MAX_ENERGY;
+    this.maxEnergy = maxEnergy;
+    this.energy = maxEnergy;
     this.weapon = 'normal'; // 'normal' | 'special'
-    this.specialAmmo = PLAYER_START_SPECIAL_AMMO;
+    this.specialAmmo = startSpecialAmmo;
     this.cooldown = 0;
     this.invuln = 0;
     this.alive = true;
@@ -101,11 +101,22 @@ class Player {
 
 // 적 탱크
 class Enemy {
-  constructor(x, y, kind) {
+  constructor(x, y, kind, diff) {
     this.x = x;
     this.y = y;
     this.kind = kind || 'basic';
-    this.stats = ENEMY_KINDS[this.kind];
+    const base = ENEMY_KINDS[this.kind];
+    this.stats = {
+      color: base.color,
+      colorDark: base.colorDark,
+      speed: base.speed * diff.enemySpeedMul,
+      detectRange: base.detectRange * diff.enemyRangeMul,
+      fireRange: base.fireRange * diff.enemyRangeMul,
+      fireCooldown: base.fireCooldown * diff.enemyFireCooldownMul,
+      bulletSpeed: base.bulletSpeed,
+      breaksWalls: base.breaksWalls,
+      contactDamage: base.contactDamage,
+    };
     this.angle = Math.random() * Math.PI * 2;
     this.radius = ENEMY_RADIUS;
     this.speed = this.stats.speed;

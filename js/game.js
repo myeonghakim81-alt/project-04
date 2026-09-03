@@ -4,12 +4,17 @@
   canvas.height = CANVAS_H;
   const ctx = canvas.getContext('2d');
 
-  const startScreen = document.getElementById('start-screen');
+  const titleScreen = document.getElementById('title-screen');
+  const difficultyScreen = document.getElementById('difficulty-screen');
   const stageClearScreen = document.getElementById('stageclear-screen');
   const gameOverScreen = document.getElementById('gameover-screen');
   const stageClearInfo = document.getElementById('stageclear-info');
+  const stageClearTitle = document.getElementById('stageclear-title');
   const gameOverInfo = document.getElementById('gameover-info');
   const gameOverTitle = document.getElementById('gameover-title');
+  const continueBtn = document.getElementById('continue-btn');
+  const restartBtn = document.getElementById('restart-btn');
+  const stageClearBtn = document.getElementById('next-stage-btn');
 
   const KEY_MAP = {
     ArrowUp: 'up', KeyW: 'up',
@@ -41,11 +46,17 @@
       e.preventDefault();
     }
     if (e.code === 'Enter') {
-      if (!startScreen.classList.contains('hidden')) startGame();
-      else if (!stageClearScreen.classList.contains('hidden')) {
-        if (game.stage >= MAX_STAGE) restartGame();
+      if (!titleScreen.classList.contains('hidden')) {
+        goToDifficultySelect();
+      } else if (!difficultyScreen.classList.contains('hidden')) {
+        chooseDifficulty('normal');
+      } else if (!stageClearScreen.classList.contains('hidden')) {
+        if (game.stage >= MAX_STAGE) backToDifficultySelect();
         else goNextStage();
-      } else if (!gameOverScreen.classList.contains('hidden')) restartGame();
+      } else if (!gameOverScreen.classList.contains('hidden')) {
+        gameOverScreen.classList.add('hidden');
+        startRun();
+      }
     }
   });
 
@@ -53,6 +64,17 @@
     if (KEY_MAP[e.code]) input.delete(KEY_MAP[e.code]);
     if (e.code === 'Space') fireHeld = false;
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') weaponTogglePressed = false;
+  });
+
+  // 창 포커스를 잃으면(alt-tab 등) keyup을 못 받아 fireHeld가 true에 고정될 수 있으므로 안전하게 초기화
+  window.addEventListener('blur', () => {
+    input.clear();
+    fireHeld = false;
+    fireHeldPrev = false;
+    fireChargeTime = 0;
+    weaponTogglePressed = false;
+    joystickPointerId = null;
+    resetJoystick();
   });
 
   // ---- 터치(모바일) 조작: 가상 조이스틱 + 발사/무기전환 버튼 ----
@@ -136,17 +158,54 @@
     e.preventDefault();
   });
 
-  const stageClearBtn = document.getElementById('next-stage-btn');
+  // ---- 타이틀 / 난이도 선택 ----
+  titleScreen.addEventListener('click', goToDifficultySelect);
 
-  document.getElementById('start-btn').addEventListener('click', startGame);
+  document.querySelectorAll('.diff-card').forEach((card) => {
+    card.addEventListener('click', () => chooseDifficulty(card.dataset.diff));
+  });
+
+  function goToDifficultySelect() {
+    titleScreen.classList.add('hidden');
+    difficultyScreen.classList.remove('hidden');
+    game.state = 'DIFFICULTY_SELECT';
+  }
+
+  function backToDifficultySelect() {
+    stageClearScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    difficultyScreen.classList.remove('hidden');
+    game.state = 'DIFFICULTY_SELECT';
+  }
+
+  function chooseDifficulty(key) {
+    game.difficulty = key;
+    game.diff = DIFFICULTIES[key];
+    difficultyScreen.classList.add('hidden');
+    startRun();
+  }
+
+  restartBtn.addEventListener('click', () => {
+    gameOverScreen.classList.add('hidden');
+    startRun();
+  });
+
+  continueBtn.addEventListener('click', () => {
+    if (!game.diff.allowContinue) return;
+    gameOverScreen.classList.add('hidden');
+    game.timeLeft += timeLimitForStage(game.stage, game.diff);
+    startStage(game.stage); // 스테이지/점수는 유지, 그 스테이지부터 이어감
+  });
+
   stageClearBtn.addEventListener('click', () => {
-    if (game.stage >= MAX_STAGE) restartGame();
+    if (game.stage >= MAX_STAGE) backToDifficultySelect();
     else goNextStage();
   });
-  document.getElementById('restart-btn').addEventListener('click', restartGame);
 
   const game = {
-    state: 'START', // START | PLAYING | STAGE_CLEAR | GAME_OVER
+    state: 'TITLE', // TITLE | DIFFICULTY_SELECT | PLAYING | STAGE_CLEAR | GAME_OVER
+    difficulty: null,
+    diff: null,
     stage: 1,
     score: 0,
     timeLeft: 0,
@@ -159,34 +218,28 @@
     ammoGraceTimer: null, // 특수탄 0 상태가 된 뒤 남은 유예 시간 (null = 카운트다운 없음)
   };
 
-  function startGame() {
-    startScreen.classList.add('hidden');
+  function addScore(base) {
+    game.score += Math.round(base * game.diff.scoreMul);
+  }
+
+  function startRun() {
     game.stage = 1;
     game.score = 0;
-    game.timeLeft = timeLimitForStage(1); // 전체 누적 시간 풀 시작
+    game.timeLeft = timeLimitForStage(1, game.diff);
     startStage(game.stage);
   }
 
   function goNextStage() {
     stageClearScreen.classList.add('hidden');
     game.stage++;
-    game.timeLeft += timeLimitForStage(game.stage); // 초기화 대신 누적 추가
-    startStage(game.stage);
-  }
-
-  function restartGame() {
-    gameOverScreen.classList.add('hidden');
-    stageClearScreen.classList.add('hidden');
-    game.stage = 1;
-    game.score = 0;
-    game.timeLeft = timeLimitForStage(1);
+    game.timeLeft += timeLimitForStage(game.stage, game.diff); // 초기화 대신 누적 추가
     startStage(game.stage);
   }
 
   function startStage(stage) {
     const seed = stage * 7919 + 13;
-    game.grid = createMaze(seed);
-    game.player = new Player(1 * TILE + TILE / 2, 1 * TILE + TILE / 2);
+    game.grid = createMaze(seed, game.diff.wallDensity);
+    game.player = new Player(1 * TILE + TILE / 2, 1 * TILE + TILE / 2, game.diff.maxEnergy, game.diff.startSpecialAmmo);
     game.enemies = [];
     game.bullets = [];
     game.items = [];
@@ -213,7 +266,7 @@
         const cell = open[Math.floor(Math.random() * open.length)];
         candidate = { x: cell.c * TILE + TILE / 2, y: cell.r * TILE + TILE / 2 };
       }
-      game.enemies.push(new Enemy(candidate.x, candidate.y, pickEnemyKind(game.stage)));
+      game.enemies.push(new Enemy(candidate.x, candidate.y, pickEnemyKind(game.stage, game.diff), game.diff));
       game.enemiesToSpawn--;
     }
   }
@@ -230,8 +283,8 @@
     if (r < 0 || c < 0 || r >= ROWS || c >= COLS) return;
     if (game.grid[r][c] === WALL_BREAKABLE) {
       game.grid[r][c] = WALL_NONE;
-      game.score += SCORE_WALL;
-      tryDropItem(c * TILE + TILE / 2, r * TILE + TILE / 2, ITEM_DROP_CHANCE_WALL);
+      addScore(SCORE_WALL);
+      tryDropItem(c * TILE + TILE / 2, r * TILE + TILE / 2, Math.min(1, ITEM_DROP_CHANCE_WALL * game.diff.itemDropMul));
     }
   }
 
@@ -269,7 +322,7 @@
 
     // 특수탄이 0인 동안 유예 시간이 흐르고, 다 떨어지면 게임오버
     if (player.specialAmmo <= 0) {
-      if (game.ammoGraceTimer === null) game.ammoGraceTimer = ZERO_AMMO_GRACE_TIME;
+      if (game.ammoGraceTimer === null) game.ammoGraceTimer = game.diff.zeroAmmoGrace;
       else game.ammoGraceTimer -= dt;
     } else {
       game.ammoGraceTimer = null;
@@ -306,8 +359,8 @@
             enemy.takeHit();
             bullet.alive = false;
             if (!enemy.alive) {
-              game.score += SCORE_ENEMY;
-              tryDropItem(enemy.x, enemy.y, ITEM_DROP_CHANCE_ENEMY);
+              addScore(SCORE_ENEMY);
+              tryDropItem(enemy.x, enemy.y, Math.min(1, ITEM_DROP_CHANCE_ENEMY * game.diff.itemDropMul));
             }
             break;
           }
@@ -319,7 +372,7 @@
       item.update(dt);
       if (Math.hypot(item.x - player.x, item.y - player.y) < item.radius + player.radius) {
         item.alive = false;
-        game.score += SCORE_ITEM;
+        addScore(SCORE_ITEM);
         if (item.type === 'ammo') player.specialAmmo += ITEM_AMMO_GRANT;
         else player.heal(ITEM_ENERGY_HEAL);
       }
@@ -348,14 +401,16 @@
 
   function triggerStageClear() {
     game.state = 'STAGE_CLEAR';
-    const bonus = Math.round(game.timeLeft * TIME_BONUS_PER_SEC);
+    const bonus = Math.round(game.timeLeft * TIME_BONUS_PER_SEC * game.diff.scoreMul);
     game.score += bonus;
 
     if (game.stage >= MAX_STAGE) {
+      stageClearTitle.textContent = '🏆 ALL CLEAR!';
       stageClearInfo.innerHTML =
-        `🏆 전체 ${MAX_STAGE}스테이지를 모두 클리어했습니다!<br/>최종 점수: ${game.score}`;
-      stageClearBtn.textContent = '처음부터 다시';
+        `전체 ${MAX_STAGE}스테이지를 모두 클리어했습니다! (${game.diff.label})<br/>최종 점수: ${game.score}`;
+      stageClearBtn.textContent = '난이도 선택으로';
     } else {
+      stageClearTitle.textContent = 'STAGE CLEAR!';
       stageClearInfo.innerHTML =
         `스테이지 ${game.stage} 클리어!<br/>남은 시간 보너스: +${bonus}<br/>누적 시간: ${Math.ceil(game.timeLeft)}s<br/>현재 점수: ${game.score}`;
       stageClearBtn.textContent = '다음 스테이지';
@@ -371,6 +426,8 @@
       reason === 'ammo_empty' ? '특수탄약 소진 - 제한시간 초과' :
       '에너지 소진';
     gameOverInfo.innerHTML = `${reasonText}<br/>도달 스테이지: ${game.stage}<br/>최종 점수: ${game.score}`;
+    if (game.diff.allowContinue) continueBtn.classList.remove('hidden');
+    else continueBtn.classList.add('hidden');
     gameOverScreen.classList.remove('hidden');
   }
 
@@ -430,7 +487,13 @@
     const bottomY = HUD_TOP + PLAY_H + HUD_BOTTOM / 2;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#e8ecf4';
-    ctx.fillText(`STAGE ${game.stage}/${MAX_STAGE}`, 12, bottomY);
+    const stageText = `STAGE ${game.stage}/${MAX_STAGE}`;
+    ctx.fillText(stageText, 12, bottomY);
+    const stageWidth = ctx.measureText(stageText).width;
+    ctx.fillStyle = game.diff.color;
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(game.diff.label, 12 + stageWidth + 10, bottomY);
+    ctx.font = 'bold 14px sans-serif';
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8ecf4';
@@ -441,7 +504,33 @@
     ctx.fillText(`남은 적 ${remaining}`, CANVAS_W - 12, bottomY);
   }
 
+  // ---- 타이틀 / 난이도 선택 화면 배경 (탱크 히어로 샷) ----
+  let titleGrid = null;
+  function renderTitleBackground() {
+    if (!titleGrid) titleGrid = createMaze(4242, 0.42);
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.fillStyle = '#11151f';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    drawMaze(ctx, titleGrid);
+
+    const t = performance.now() / 1000;
+    const angle = -Math.PI / 2 + Math.sin(t * 0.5) * 0.4;
+    ctx.save();
+    ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
+    ctx.scale(2.6, 2.6);
+    drawTankShape(ctx, 0, 0, angle, '#3ddc84', '#1f7a44');
+    ctx.restore();
+
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
+
   function render() {
+    if (game.state === 'TITLE' || game.state === 'DIFFICULTY_SELECT') {
+      renderTitleBackground();
+      return;
+    }
+
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
     if (game.grid) {

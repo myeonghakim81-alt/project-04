@@ -20,12 +20,9 @@ const WALL_SOLID = 2; // 파괴 불가 (기둥/외곽)
 // 플레이어
 const PLAYER_RADIUS = 15;
 const PLAYER_SPEED = 150; // px/s
-const PLAYER_MAX_ENERGY = 3;
-const PLAYER_START_SPECIAL_AMMO = 3;
 const FIRE_COOLDOWN_NORMAL = 0.28;
 const FIRE_COOLDOWN_SPECIAL = 0.5;
 const PLAYER_INVULN_TIME = 1.3;
-const ZERO_AMMO_GRACE_TIME = 15; // 특수탄 소진 후 이 시간 안에 보충하지 못하면 게임오버
 const CHARGE_HOLD_TIME = 0.6; // 발사 버튼을 이만큼 눌렀다 떼면(특수탄 0일 때) 강화 발사 - 비공개
 
 // 미사일
@@ -42,8 +39,7 @@ const ENEMY_FIRE_RANGE = 320;
 const ENEMY_FIRE_COOLDOWN = 1.5;
 const ENEMY_MAX_ACTIVE = 6; // 동시 활성 적 수 (웨이브 방식)
 
-// 적 종류 (스테이지 11부터 다양화)
-const ENEMY_VARIETY_STAGE = 11;
+// 적 종류의 기본(=NORMAL 난이도 기준) 스탯. 실제 스탯은 난이도 배율이 곱해져 결정된다.
 const ENEMY_KINDS = {
   basic: {
     color: '#ff5d5d', colorDark: '#8a2727',
@@ -71,15 +67,6 @@ const ENEMY_KINDS = {
   },
 };
 
-function pickEnemyKind(stage) {
-  if (stage < ENEMY_VARIETY_STAGE) return 'basic';
-  const roll = Math.random();
-  if (roll < 0.4) return 'basic';
-  if (roll < 0.6) return 'sniper';
-  if (roll < 0.8) return 'rusher';
-  return 'breaker';
-}
-
 // 아이템
 const ITEM_RADIUS = 11;
 const ITEM_DROP_CHANCE_WALL = 0.24;
@@ -87,16 +74,55 @@ const ITEM_DROP_CHANCE_ENEMY = 0.4;
 const ITEM_AMMO_GRANT = 3;
 const ITEM_ENERGY_HEAL = 1;
 
-// 점수
+// 점수 기본값 (난이도별 scoreMul이 곱해져 최종 반영됨)
 const SCORE_WALL = 10;
 const SCORE_ENEMY = 100;
 const SCORE_ITEM = 20;
 const TIME_BONUS_PER_SEC = 5;
 
-// 미로 생성
-const WALL_DENSITY = 0.42; // 부술 수 있는 벽이 배치될 확률
+const WALL_DENSITY = 0.42; // 미로 생성 시 기본 벽 밀도 (난이도 미지정 시 fallback)
 
 const MAX_STAGE = 100;
+
+// ==================== 난이도 ====================
+const DIFFICULTIES = {
+  easy: {
+    key: 'easy', label: '이지', sub: '여유로운 진행 · 실패해도 이어하기 가능',
+    color: '#4be08a', colorDark: '#1c5c37',
+    maxEnergy: 4, startSpecialAmmo: 4, zeroAmmoGrace: 20,
+    stageTimeStart: 110, stageTimeStep: 2, stageTimeMin: 60,
+    enemySpeedMul: 0.85, enemyFireCooldownMul: 1.3, enemyRangeMul: 0.85,
+    itemDropMul: 1.4, wallDensity: 0.36, varietyStage: 16,
+    scoreMul: 1.0, allowContinue: true,
+  },
+  normal: {
+    key: 'normal', label: '노멀', sub: '표준 난이도 · 실패해도 이어하기 가능',
+    color: '#ffd23f', colorDark: '#a97e00',
+    maxEnergy: 3, startSpecialAmmo: 3, zeroAmmoGrace: 15,
+    stageTimeStart: 90, stageTimeStep: 3, stageTimeMin: 45,
+    enemySpeedMul: 1.0, enemyFireCooldownMul: 1.0, enemyRangeMul: 1.0,
+    itemDropMul: 1.0, wallDensity: 0.42, varietyStage: 11,
+    scoreMul: 1.5, allowContinue: true,
+  },
+  hard: {
+    key: 'hard', label: '하드', sub: '이어하기 없음 · 오직 하이스코어',
+    color: '#ff5d5d', colorDark: '#8a2727',
+    maxEnergy: 3, startSpecialAmmo: 2, zeroAmmoGrace: 8,
+    stageTimeStart: 75, stageTimeStep: 3.5, stageTimeMin: 35,
+    enemySpeedMul: 1.2, enemyFireCooldownMul: 0.75, enemyRangeMul: 1.2,
+    itemDropMul: 0.7, wallDensity: 0.48, varietyStage: 6,
+    scoreMul: 2.2, allowContinue: false,
+  },
+};
+
+function pickEnemyKind(stage, diff) {
+  if (stage < diff.varietyStage) return 'basic';
+  const roll = Math.random();
+  if (roll < 0.4) return 'basic';
+  if (roll < 0.6) return 'sniper';
+  if (roll < 0.8) return 'rusher';
+  return 'breaker';
+}
 
 function enemiesForStage(stage) {
   if (stage === 1) return 1;
@@ -106,6 +132,6 @@ function enemiesForStage(stage) {
   return Math.min(60, Math.round(8 * Math.pow(1.5, stage - 4)));
 }
 
-function timeLimitForStage(stage) {
-  return Math.max(45, 90 - (stage - 1) * 3);
+function timeLimitForStage(stage, diff) {
+  return Math.max(diff.stageTimeMin, diff.stageTimeStart - (stage - 1) * diff.stageTimeStep);
 }
