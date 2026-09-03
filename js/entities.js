@@ -101,30 +101,35 @@ class Player {
 
 // 적 탱크
 class Enemy {
-  constructor(x, y, kind, diff) {
+  constructor(x, y, kind, diff, extra) {
+    extra = extra || {};
     this.x = x;
     this.y = y;
     this.kind = kind || 'basic';
+    this.veteran = !!extra.veteran; // 중간보스를 넘긴 직후 스테이지의 강화 개체
     const base = ENEMY_KINDS[this.kind];
     this.stats = {
       color: base.color,
       colorDark: base.colorDark,
-      speed: base.speed * diff.enemySpeedMul,
+      speed: base.speed * diff.enemySpeedMul * (this.veteran ? VETERAN_SPEED_MUL : 1),
       detectRange: base.detectRange * diff.enemyRangeMul,
       fireRange: base.fireRange * diff.enemyRangeMul,
       fireCooldown: base.fireCooldown * diff.enemyFireCooldownMul,
       bulletSpeed: base.bulletSpeed,
       breaksWalls: base.breaksWalls,
       contactDamage: base.contactDamage,
+      multiShot: this.kind === 'boss',
     };
     this.angle = Math.random() * Math.PI * 2;
-    this.radius = ENEMY_RADIUS;
+    this.radius = this.kind === 'boss' ? BOSS_RADIUS : ENEMY_RADIUS;
     this.speed = this.stats.speed;
-    this.hp = 1;
+    this.hp = this.kind === 'boss' ? bossHpForStage(extra.stage || 1) : 1;
+    this.maxHp = this.hp;
     this.state = 'patrol';
     this.fireCooldown = this.stats.fireCooldown * Math.random();
     this.wanderTimer = 0;
     this.dir = { x: 0, y: 0 };
+    this.weavePhase = Math.random() * Math.PI * 2;
     this.alive = true;
   }
 
@@ -141,6 +146,20 @@ class Enemy {
       const len = Math.hypot(dx, dy) || 1;
       dx /= len;
       dy /= len;
+
+      if (this.veteran) {
+        // 회피 기동: 접근 방향에 수직인 성분을 섞어 좌우로 흔들며 다가온다 (맞히기 어려움)
+        this.weavePhase += dt * 4;
+        const weave = Math.sin(this.weavePhase) * VETERAN_WEAVE_AMOUNT;
+        const perpX = -dy;
+        const perpY = dx;
+        dx += perpX * weave;
+        dy += perpY * weave;
+        const wlen = Math.hypot(dx, dy) || 1;
+        dx /= wlen;
+        dy /= wlen;
+      }
+
       this.angle = Math.atan2(dy, dx);
     } else {
       this.wanderTimer -= dt;
@@ -185,19 +204,22 @@ class Enemy {
       this.fireCooldown <= 0
     ) {
       this.fireCooldown = this.stats.fireCooldown;
-      const bx = this.x + Math.cos(this.angle) * (this.radius + 6);
-      const by = this.y + Math.sin(this.angle) * (this.radius + 6);
-      bullets.push(
-        new Bullet(
-          bx,
-          by,
-          Math.cos(this.angle) * this.stats.bulletSpeed,
-          Math.sin(this.angle) * this.stats.bulletSpeed,
-          'normal',
-          'enemy',
-          this.stats.breaksWalls
-        )
-      );
+      const angles = this.stats.multiShot ? [this.angle - 0.24, this.angle, this.angle + 0.24] : [this.angle];
+      for (const a of angles) {
+        const bx = this.x + Math.cos(a) * (this.radius + 6);
+        const by = this.y + Math.sin(a) * (this.radius + 6);
+        bullets.push(
+          new Bullet(
+            bx,
+            by,
+            Math.cos(a) * this.stats.bulletSpeed,
+            Math.sin(a) * this.stats.bulletSpeed,
+            'normal',
+            'enemy',
+            this.stats.breaksWalls
+          )
+        );
+      }
     }
   }
 
@@ -207,7 +229,30 @@ class Enemy {
   }
 
   draw(ctx) {
-    drawTankShape(ctx, this.x, this.y, this.angle, this.stats.color, this.stats.colorDark);
+    if (this.kind === 'boss') {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(BOSS_VISUAL_SCALE, BOSS_VISUAL_SCALE);
+      drawTankShape(ctx, 0, 0, this.angle, this.stats.color, this.stats.colorDark);
+      ctx.restore();
+      this.drawHealthBar(ctx);
+    } else {
+      drawTankShape(ctx, this.x, this.y, this.angle, this.stats.color, this.stats.colorDark);
+    }
+  }
+
+  drawHealthBar(ctx) {
+    const w = 46;
+    const h = 6;
+    const x = this.x - w / 2;
+    const y = this.y - 34;
+    const ratio = Math.max(0, this.hp / this.maxHp);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+    ctx.fillStyle = '#3a3f4d';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = ratio > 0.4 ? '#ff5d5d' : '#ff2d2d';
+    ctx.fillRect(x, y, w * ratio, h);
   }
 }
 

@@ -65,7 +65,34 @@ const ENEMY_KINDS = {
     fireCooldown: ENEMY_FIRE_COOLDOWN * 1.2, bulletSpeed: ENEMY_BULLET_SPEED,
     breaksWalls: true, contactDamage: false,
   },
+  boss: { // 중간보스: 크고 단단하고, 3way 탄막을 쏘는 벽파괴형
+    color: '#ff2d55', colorDark: '#7a0f26',
+    speed: ENEMY_SPEED * 0.6, detectRange: ENEMY_DETECT_RANGE * 1.3, fireRange: ENEMY_FIRE_RANGE * 1.3,
+    fireCooldown: ENEMY_FIRE_COOLDOWN * 0.6, bulletSpeed: ENEMY_BULLET_SPEED,
+    breaksWalls: true, contactDamage: false,
+  },
 };
+
+// ==================== 중간보스 ====================
+const BOSS_STAGE_INTERVAL = 5; // 이 배수 스테이지마다 중간보스 등장 (5, 10, 15, ...)
+const BOSS_VISUAL_SCALE = 1.6; // 보스 탱크 그래픽 확대 배율
+const BOSS_RADIUS = 17; // 충돌 반경 (미로 통로 폭보다 충분히 작게 유지)
+const BOSS_BASE_HP = 6; // 보스 기본 체력(피격 횟수)
+const SCORE_BOSS = 500; // 보스 처치 기본 점수 (난이도 배율 적용 전)
+const VETERAN_SPEED_MUL = 1.3; // 보스를 넘긴 직후 스테이지에 등장하는 강화 개체 속도 배율
+const VETERAN_WEAVE_AMOUNT = 0.7; // 강화 개체의 회피 기동 강도
+
+function isBossStage(stage) {
+  return stage % BOSS_STAGE_INTERVAL === 0;
+}
+
+function isVeteranStage(stage) {
+  return stage > 1 && (stage - 1) % BOSS_STAGE_INTERVAL === 0;
+}
+
+function bossHpForStage(stage) {
+  return BOSS_BASE_HP + Math.floor((stage - 1) / 25);
+}
 
 // 아이템
 const ITEM_RADIUS = 11;

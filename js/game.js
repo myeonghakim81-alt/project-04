@@ -233,6 +233,8 @@
     items: [],
     enemiesToSpawn: 0,
     ammoGraceTimer: null, // 특수탄 0 상태가 된 뒤 남은 유예 시간 (null = 카운트다운 없음)
+    isBossStage: false,
+    isVeteranStage: false,
   };
 
   function addScore(base) {
@@ -260,7 +262,10 @@
     game.enemies = [];
     game.bullets = [];
     game.items = [];
-    game.enemiesToSpawn = enemiesForStage(stage);
+    game.isBossStage = isBossStage(stage);
+    game.isVeteranStage = isVeteranStage(stage);
+    // 보스/베테랑 스테이지는 정해진 수 대신 딱 1기만 등장한다
+    game.enemiesToSpawn = game.isBossStage || game.isVeteranStage ? 1 : enemiesForStage(stage);
     game.ammoGraceTimer = null;
     game.state = 'PLAYING';
     spawnWave();
@@ -283,7 +288,9 @@
         const cell = open[Math.floor(Math.random() * open.length)];
         candidate = { x: cell.c * TILE + TILE / 2, y: cell.r * TILE + TILE / 2 };
       }
-      game.enemies.push(new Enemy(candidate.x, candidate.y, pickEnemyKind(game.stage, game.diff), game.diff));
+      const kind = game.isBossStage ? 'boss' : pickEnemyKind(game.stage, game.diff);
+      const extra = { stage: game.stage, veteran: game.isVeteranStage };
+      game.enemies.push(new Enemy(candidate.x, candidate.y, kind, game.diff, extra));
       game.enemiesToSpawn--;
     }
   }
@@ -357,8 +364,13 @@
             enemy.takeHit();
             bullet.alive = false;
             if (!enemy.alive) {
-              addScore(SCORE_ENEMY);
-              tryDropItem(enemy.x, enemy.y, Math.min(1, ITEM_DROP_CHANCE_ENEMY * game.diff.itemDropMul));
+              if (enemy.kind === 'boss') {
+                addScore(SCORE_BOSS);
+                tryDropItem(enemy.x, enemy.y, 1); // 보스는 아이템 드랍 확정
+              } else {
+                addScore(SCORE_ENEMY);
+                tryDropItem(enemy.x, enemy.y, Math.min(1, ITEM_DROP_CHANCE_ENEMY * game.diff.itemDropMul));
+              }
             }
             break;
           }
@@ -407,6 +419,11 @@
       stageClearInfo.innerHTML =
         `전체 ${MAX_STAGE}스테이지를 모두 클리어했습니다! (${game.diff.label})<br/>최종 점수: ${game.score}`;
       stageClearBtn.textContent = '난이도 선택으로';
+    } else if (game.isBossStage) {
+      stageClearTitle.textContent = '💥 BOSS DOWN!';
+      stageClearInfo.innerHTML =
+        `중간보스 격파!<br/>남은 시간 보너스: +${bonus}<br/>누적 시간: ${Math.ceil(game.timeLeft)}s<br/>현재 점수: ${game.score}`;
+      stageClearBtn.textContent = '다음 스테이지';
     } else {
       stageClearTitle.textContent = 'STAGE CLEAR!';
       stageClearInfo.innerHTML =
@@ -499,7 +516,13 @@
 
     ctx.textAlign = 'right';
     const remaining = game.enemiesToSpawn + game.enemies.length;
-    ctx.fillText(`남은 적 ${remaining}`, CANVAS_W - 12, bottomY);
+    if (game.isBossStage) {
+      ctx.fillStyle = '#ff2d55';
+      ctx.fillText('⚠ BOSS', CANVAS_W - 12, bottomY);
+    } else {
+      ctx.fillStyle = '#e8ecf4';
+      ctx.fillText(`남은 적 ${remaining}`, CANVAS_W - 12, bottomY);
+    }
   }
 
   // ---- 타이틀 / 난이도 선택 화면 배경 (탱크 히어로 샷) ----
