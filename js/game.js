@@ -247,14 +247,19 @@
 
     const player = game.player;
     player.update(dt, input, game.grid);
-    if (fireHeld && player.canFire()) {
+
+    // 발사는 연사가 아니라 버튼을 누르는 순간(press edge)에 1발만 나간다
+    const firePressedNow = fireHeld && !fireHeldPrev;
+    const fireReleasedNow = !fireHeld && fireHeldPrev;
+
+    if (firePressedNow && player.canFire()) {
       game.bullets.push(player.fire());
     }
 
     // 발사 버튼을 누르고 있던 시간을 추적하다, 뗄 때(release edge) 조건이 맞으면 강화 발사
     if (fireHeld) {
       fireChargeTime += dt;
-    } else if (fireHeldPrev) {
+    } else if (fireReleasedNow) {
       if (player.specialAmmo <= 0 && fireChargeTime >= CHARGE_HOLD_TIME) {
         game.bullets.push(player.fireCharged());
       }
@@ -378,11 +383,9 @@
     ctx.font = 'bold 14px sans-serif';
     ctx.textBaseline = 'middle';
 
-    ctx.textAlign = 'left';
-    ctx.fillText(`STAGE ${game.stage}`, 12, HUD_TOP / 2);
-
     // 에너지 하트
-    const heartsX = 130;
+    ctx.textAlign = 'left';
+    const heartsX = 30;
     for (let i = 0; i < game.player.maxEnergy; i++) {
       ctx.fillStyle = i < game.player.energy ? '#ff5d5d' : '#3a3f4d';
       ctx.beginPath();
@@ -401,22 +404,33 @@
     ctx.fillStyle = game.timeLeft < 10 ? '#ff5d5d' : '#e8ecf4';
     ctx.fillText(`TIME ${Math.ceil(game.timeLeft)}s`, CANVAS_W - 12, HUD_TOP / 2);
 
-    // 잔여 특수탄 (상단 중앙)
-    ctx.textAlign = 'center';
+    // 현재 장전된 무기 + 잔여 특수탄 (상단 중앙, 한 그룹으로 가운데 정렬)
+    const weaponLabel = game.player.weapon === 'special' ? '특수' : '일반';
+    const weaponText = `무기: ${weaponLabel}`;
+    const weaponColor = game.player.weapon === 'special' ? '#ffd23f' : '#e8ecf4';
+    let ammoText, ammoColor;
     if (game.player.specialAmmo > 0) {
-      ctx.fillStyle = '#ffd23f';
-      ctx.fillText(`특수탄 ${game.player.specialAmmo}`, CANVAS_W / 2, HUD_TOP / 2);
+      ammoText = `특수탄 ${game.player.specialAmmo}`;
+      ammoColor = '#ffd23f';
     } else {
-      ctx.fillStyle = '#ff5d5d';
       const graceLabel = game.ammoGraceTimer !== null ? Math.ceil(game.ammoGraceTimer) : 0;
-      ctx.fillText(`특수탄 0 · ${graceLabel}s`, CANVAS_W / 2, HUD_TOP / 2);
+      ammoText = `특수탄 0 · ${graceLabel}s`;
+      ammoColor = '#ff5d5d';
     }
+    const gap = 16;
+    ctx.textAlign = 'left';
+    const weaponWidth = ctx.measureText(weaponText).width;
+    const ammoWidth = ctx.measureText(ammoText).width;
+    const groupStartX = CANVAS_W / 2 - (weaponWidth + gap + ammoWidth) / 2;
+    ctx.fillStyle = weaponColor;
+    ctx.fillText(weaponText, groupStartX, HUD_TOP / 2);
+    ctx.fillStyle = ammoColor;
+    ctx.fillText(ammoText, groupStartX + weaponWidth + gap, HUD_TOP / 2);
 
     const bottomY = HUD_TOP + PLAY_H + HUD_BOTTOM / 2;
     ctx.textAlign = 'left';
-    ctx.fillStyle = game.player.weapon === 'special' ? '#ffd23f' : '#e8ecf4';
-    const weaponLabel = game.player.weapon === 'special' ? '특수' : '일반';
-    ctx.fillText(`무기: ${weaponLabel}`, 12, bottomY);
+    ctx.fillStyle = '#e8ecf4';
+    ctx.fillText(`STAGE ${game.stage}/${MAX_STAGE}`, 12, bottomY);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8ecf4';

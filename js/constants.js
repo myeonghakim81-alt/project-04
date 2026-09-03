@@ -25,7 +25,7 @@ const PLAYER_START_SPECIAL_AMMO = 3;
 const FIRE_COOLDOWN_NORMAL = 0.28;
 const FIRE_COOLDOWN_SPECIAL = 0.5;
 const PLAYER_INVULN_TIME = 1.3;
-const ZERO_AMMO_GRACE_TIME = 10; // 특수탄 소진 후 이 시간 안에 보충하지 못하면 게임오버
+const ZERO_AMMO_GRACE_TIME = 15; // 특수탄 소진 후 이 시간 안에 보충하지 못하면 게임오버
 const CHARGE_HOLD_TIME = 0.6; // 발사 버튼을 이만큼 눌렀다 떼면(특수탄 0일 때) 강화 발사 - 비공개
 
 // 미사일
