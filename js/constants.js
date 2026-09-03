@@ -23,7 +23,7 @@ const PLAYER_SPEED = 150; // px/s
 const FIRE_COOLDOWN_NORMAL = 0.28;
 const FIRE_COOLDOWN_SPECIAL = 0.5;
 const PLAYER_INVULN_TIME = 1.3;
-const CHARGE_HOLD_TIME = 0.6; // 발사 버튼을 이만큼 눌렀다 떼면(특수탄 0일 때) 강화 발사 - 비공개
+const CHARGE_HOLD_TIME = 0.45; // 발사 버튼을 이만큼 눌렀다 떼면(특수탄 0일 때) 강화 발사 - 비공개
 
 // 미사일
 const BULLET_RADIUS = 5;

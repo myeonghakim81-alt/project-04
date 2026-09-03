@@ -24,10 +24,29 @@
   };
 
   const input = new Set();
-  let fireHeld = false;
   let weaponTogglePressed = false;
-  let fireHeldPrev = false;
-  let fireChargeTime = 0;
+
+  // 발사 버튼을 누른 시각(performance.now(), 안 누르고 있으면 null).
+  // requestAnimationFrame 루프의 프레임 단위 상태 비교 대신 이벤트 자체에서 직접
+  // 누른/뗀 시각을 기록해서, 화면 전환 등으로 프레임이 스킵되어도 어긋나지 않게 한다.
+  let fireHoldStartTime = null;
+
+  function handleFirePress() {
+    if (fireHoldStartTime !== null) return; // 이미 누르고 있음 (키 반복 등) - 무시
+    fireHoldStartTime = performance.now();
+    if (game.state === 'PLAYING' && game.player.canFire()) {
+      game.bullets.push(game.player.fire());
+    }
+  }
+
+  function handleFireRelease() {
+    if (fireHoldStartTime === null) return;
+    const heldSeconds = (performance.now() - fireHoldStartTime) / 1000;
+    fireHoldStartTime = null;
+    if (game.state === 'PLAYING' && game.player.specialAmmo <= 0 && heldSeconds >= CHARGE_HOLD_TIME) {
+      game.bullets.push(game.player.fireCharged());
+    }
+  }
 
   window.addEventListener('keydown', (e) => {
     if (KEY_MAP[e.code]) {
@@ -35,7 +54,7 @@
       e.preventDefault();
     }
     if (e.code === 'Space') {
-      fireHeld = true;
+      handleFirePress();
       e.preventDefault();
     }
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
@@ -62,16 +81,14 @@
 
   window.addEventListener('keyup', (e) => {
     if (KEY_MAP[e.code]) input.delete(KEY_MAP[e.code]);
-    if (e.code === 'Space') fireHeld = false;
+    if (e.code === 'Space') handleFireRelease();
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') weaponTogglePressed = false;
   });
 
-  // 창 포커스를 잃으면(alt-tab 등) keyup을 못 받아 fireHeld가 true에 고정될 수 있으므로 안전하게 초기화
+  // 창 포커스를 잃으면(alt-tab 등) keyup을 못 받아 발사 상태가 고정될 수 있으므로 안전하게 초기화
   window.addEventListener('blur', () => {
     input.clear();
-    fireHeld = false;
-    fireHeldPrev = false;
-    fireChargeTime = 0;
+    fireHoldStartTime = null;
     weaponTogglePressed = false;
     joystickPointerId = null;
     resetJoystick();
@@ -144,12 +161,12 @@
   joystickZone.addEventListener('pointercancel', endJoystick);
 
   fireBtn.addEventListener('pointerdown', (e) => {
-    fireHeld = true;
+    handleFirePress();
     e.preventDefault();
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach((evt) =>
     fireBtn.addEventListener(evt, () => {
-      fireHeld = false;
+      handleFireRelease();
     })
   );
 
@@ -300,25 +317,6 @@
 
     const player = game.player;
     player.update(dt, input, game.grid);
-
-    // 발사는 연사가 아니라 버튼을 누르는 순간(press edge)에 1발만 나간다
-    const firePressedNow = fireHeld && !fireHeldPrev;
-    const fireReleasedNow = !fireHeld && fireHeldPrev;
-
-    if (firePressedNow && player.canFire()) {
-      game.bullets.push(player.fire());
-    }
-
-    // 발사 버튼을 누르고 있던 시간을 추적하다, 뗄 때(release edge) 조건이 맞으면 강화 발사
-    if (fireHeld) {
-      fireChargeTime += dt;
-    } else if (fireReleasedNow) {
-      if (player.specialAmmo <= 0 && fireChargeTime >= CHARGE_HOLD_TIME) {
-        game.bullets.push(player.fireCharged());
-      }
-      fireChargeTime = 0;
-    }
-    fireHeldPrev = fireHeld;
 
     // 특수탄이 0인 동안 유예 시간이 흐르고, 다 떨어지면 게임오버
     if (player.specialAmmo <= 0) {
