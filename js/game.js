@@ -21,6 +21,8 @@
   const input = new Set();
   let fireHeld = false;
   let weaponTogglePressed = false;
+  let fireHeldPrev = false;
+  let fireChargeTime = 0;
 
   window.addEventListener('keydown', (e) => {
     if (KEY_MAP[e.code]) {
@@ -154,6 +156,7 @@
     bullets: [],
     items: [],
     enemiesToSpawn: 0,
+    ammoGraceTimer: null, // 특수탄 0 상태가 된 뒤 남은 유예 시간 (null = 카운트다운 없음)
   };
 
   function startGame() {
@@ -188,6 +191,7 @@
     game.bullets = [];
     game.items = [];
     game.enemiesToSpawn = enemiesForStage(stage);
+    game.ammoGraceTimer = null;
     game.state = 'PLAYING';
     spawnWave();
   }
@@ -212,28 +216,6 @@
       game.enemies.push(new Enemy(candidate.x, candidate.y, pickEnemyKind(game.stage)));
       game.enemiesToSpawn--;
     }
-  }
-
-  // 특수탄약이 없고, 남은 적이 전부 스폰되었는데 벽에 막혀 아무 데도 닿을 수 없으면 고립으로 판정
-  function isPlayerTrapped() {
-    const player = game.player;
-    if (player.specialAmmo > 0) return false;
-    if (game.enemiesToSpawn > 0) return false;
-    if (game.enemies.length === 0) return false;
-
-    const pr = Math.floor(player.y / TILE);
-    const pc = Math.floor(player.x / TILE);
-    const reachable = floodFillOpen(game.grid, pr, pc);
-
-    const key = (x, y) => Math.floor(y / TILE) + ',' + Math.floor(x / TILE);
-
-    const enemyReachable = game.enemies.some((e) => reachable.has(key(e.x, e.y)));
-    if (enemyReachable) return false;
-
-    const ammoItemReachable = game.items.some((i) => i.type === 'ammo' && reachable.has(key(i.x, i.y)));
-    if (ammoItemReachable) return false;
-
-    return true;
   }
 
   function tryDropItem(x, y, chance) {
@@ -267,6 +249,25 @@
     player.update(dt, input, game.grid);
     if (fireHeld && player.canFire()) {
       game.bullets.push(player.fire());
+    }
+
+    // 발사 버튼을 누르고 있던 시간을 추적하다, 뗄 때(release edge) 조건이 맞으면 강화 발사
+    if (fireHeld) {
+      fireChargeTime += dt;
+    } else if (fireHeldPrev) {
+      if (player.specialAmmo <= 0 && fireChargeTime >= CHARGE_HOLD_TIME) {
+        game.bullets.push(player.fireCharged());
+      }
+      fireChargeTime = 0;
+    }
+    fireHeldPrev = fireHeld;
+
+    // 특수탄이 0인 동안 유예 시간이 흐르고, 다 떨어지면 게임오버
+    if (player.specialAmmo <= 0) {
+      if (game.ammoGraceTimer === null) game.ammoGraceTimer = ZERO_AMMO_GRACE_TIME;
+      else game.ammoGraceTimer -= dt;
+    } else {
+      game.ammoGraceTimer = null;
     }
 
     for (const enemy of game.enemies) {
@@ -330,8 +331,8 @@
       return;
     }
 
-    if (isPlayerTrapped()) {
-      triggerGameOver('trapped');
+    if (game.ammoGraceTimer !== null && game.ammoGraceTimer <= 0) {
+      triggerGameOver('ammo_empty');
       return;
     }
 
@@ -362,7 +363,7 @@
     gameOverTitle.textContent = 'GAME OVER';
     const reasonText =
       reason === 'time' ? '전체 제한시간 초과' :
-      reason === 'trapped' ? '특수탄약 소진 - 더 이상 나아갈 수 없음' :
+      reason === 'ammo_empty' ? '특수탄약 소진 - 제한시간 초과' :
       '에너지 소진';
     gameOverInfo.innerHTML = `${reasonText}<br/>도달 스테이지: ${game.stage}<br/>최종 점수: ${game.score}`;
     gameOverScreen.classList.remove('hidden');
@@ -400,15 +401,22 @@
     ctx.fillStyle = game.timeLeft < 10 ? '#ff5d5d' : '#e8ecf4';
     ctx.fillText(`TIME ${Math.ceil(game.timeLeft)}s`, CANVAS_W - 12, HUD_TOP / 2);
 
+    // 잔여 특수탄 (상단 중앙)
+    ctx.textAlign = 'center';
+    if (game.player.specialAmmo > 0) {
+      ctx.fillStyle = '#ffd23f';
+      ctx.fillText(`특수탄 ${game.player.specialAmmo}`, CANVAS_W / 2, HUD_TOP / 2);
+    } else {
+      ctx.fillStyle = '#ff5d5d';
+      const graceLabel = game.ammoGraceTimer !== null ? Math.ceil(game.ammoGraceTimer) : 0;
+      ctx.fillText(`특수탄 0 · ${graceLabel}s`, CANVAS_W / 2, HUD_TOP / 2);
+    }
+
     const bottomY = HUD_TOP + PLAY_H + HUD_BOTTOM / 2;
     ctx.textAlign = 'left';
     ctx.fillStyle = game.player.weapon === 'special' ? '#ffd23f' : '#e8ecf4';
     const weaponLabel = game.player.weapon === 'special' ? '특수' : '일반';
-    const weaponText = `무기: ${weaponLabel}`;
-    ctx.fillText(weaponText, 12, bottomY);
-    const weaponWidth = ctx.measureText(weaponText).width;
-    ctx.fillStyle = '#ffd23f';
-    ctx.fillText(`특수탄 ${game.player.specialAmmo}`, 12 + weaponWidth + 14, bottomY);
+    ctx.fillText(`무기: ${weaponLabel}`, 12, bottomY);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8ecf4';

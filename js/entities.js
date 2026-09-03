@@ -68,6 +68,16 @@ class Player {
     );
   }
 
+  // 탄약을 소모하지 않는 강화 발사 (특수탄 소진 후 발사 버튼을 길게 눌렀다 뗄 때만 호출됨)
+  fireCharged() {
+    const bx = this.x + Math.cos(this.angle) * (this.radius + 6);
+    const by = this.y + Math.sin(this.angle) * (this.radius + 6);
+    return new Bullet(
+      bx, by, Math.cos(this.angle) * BULLET_SPEED_SPECIAL, Math.sin(this.angle) * BULLET_SPEED_SPECIAL,
+      'special', 'player', true
+    );
+  }
+
   takeHit() {
     if (this.invuln > 0 || !this.alive) return false;
     this.energy--;
