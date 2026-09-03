@@ -18,6 +18,14 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 20px;
+  width: 100%;
+  max-width: 640px;
+}
+
+@media (max-width: 480px) {
+  #game-wrap {
+    padding: 10px;
+  }
 }
 
 h1 {
@@ -35,14 +43,18 @@ h1 span {
 
 #stage-container {
   position: relative;
+  width: 100%;
   border: 3px solid #3a4361;
   border-radius: 8px;
   box-shadow: 0 0 40px rgba(70, 130, 255, 0.15);
   overflow: hidden;
+  line-height: 0;
 }
 
 canvas {
   display: block;
+  width: 100%;
+  height: auto;
   background: #11151f;
 }
 
@@ -116,4 +128,140 @@ button:active {
   color: #7c8399;
   margin-top: 12px;
   text-align: center;
+}
+
+.mobile-note {
+  display: none;
+  margin: 4px 0 14px;
+  font-size: 12px;
+  color: #7c8399;
+}
+
+.control-panel {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #11151f;
+  border: 1px solid #3a4361;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12.5px;
+  color: #8b93a7;
+}
+
+.key {
+  display: inline-block;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  color: #3ddc84;
+  background: #0b0e16;
+  border: 1px solid #1f7a44;
+  border-radius: 4px;
+  padding: 3px 7px;
+  margin-right: 2px;
+}
+
+/* ---- 터치(모바일) 조작 ---- */
+.touch-controls {
+  display: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .control-panel {
+    display: none;
+  }
+
+  .mobile-note {
+    display: block;
+  }
+
+  .touch-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 14px;
+    padding: 6px 10px;
+    gap: 12px;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .joystick-zone {
+    width: 112px;
+    height: 112px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .joystick-base {
+    position: relative;
+    width: 104px;
+    height: 104px;
+    border-radius: 50%;
+    background: #11151f;
+    border: 1px solid #3a4361;
+    box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.55);
+  }
+
+  .joystick-stick {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 46px;
+    height: 46px;
+    margin: -23px 0 0 -23px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #4fedb0 0%, #3ddc84 100%);
+    box-shadow: 0 3px 0 #1f7a44, 0 8px 16px -4px rgba(61, 220, 132, 0.5);
+    will-change: transform;
+  }
+
+  .action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 0 0 auto;
+  }
+
+  .touch-btn {
+    -webkit-tap-highlight-color: transparent;
+    padding: 0;
+    border: 1px solid #1f7a44;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #08320f;
+    cursor: pointer;
+  }
+
+  #fire-btn {
+    width: 74px;
+    height: 74px;
+    font-size: 15px;
+    background: linear-gradient(180deg, #4fedb0 0%, #3ddc84 100%);
+    box-shadow: 0 4px 0 #1f7a44, 0 10px 20px -6px rgba(61, 220, 132, 0.5);
+  }
+  #fire-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #1f7a44;
+  }
+
+  #weapon-btn {
+    width: 54px;
+    height: 54px;
+    font-size: 11px;
+    background: linear-gradient(180deg, #ffd23f 0%, #d9a52c 100%);
+    border-color: #a97e00;
+    box-shadow: 0 3px 0 #a97e00, 0 8px 16px -6px rgba(255, 210, 63, 0.5);
+  }
+  #weapon-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #a97e00;
+  }
 }

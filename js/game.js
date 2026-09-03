@@ -53,6 +53,87 @@
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') weaponTogglePressed = false;
   });
 
+  // ---- 터치(모바일) 조작: 가상 조이스틱 + 발사/무기전환 버튼 ----
+  const joystickZone = document.getElementById('joystick-zone');
+  const joystickStick = document.getElementById('joystick-stick');
+  const fireBtn = document.getElementById('fire-btn');
+  const weaponBtn = document.getElementById('weapon-btn');
+  const JOYSTICK_MAX = 38;
+  const JOYSTICK_DEADZONE = 10;
+  let joystickPointerId = null;
+
+  function setDirectionFromVector(dx, dy) {
+    input.delete('up');
+    input.delete('down');
+    input.delete('left');
+    input.delete('right');
+    if (Math.hypot(dx, dy) < JOYSTICK_DEADZONE) return;
+    const deg = (Math.atan2(dy, dx) * 180) / Math.PI; // 0=right, 90=down, ±180=left, -90=up
+    if (deg > -157.5 && deg < -22.5) input.add('up');
+    if (deg > 22.5 && deg < 157.5) input.add('down');
+    if (deg > 112.5 || deg < -112.5) input.add('left');
+    if (deg > -67.5 && deg < 67.5) input.add('right');
+  }
+
+  function moveJoystick(clientX, clientY) {
+    const rect = joystickZone.getBoundingClientRect();
+    let dx = clientX - (rect.left + rect.width / 2);
+    let dy = clientY - (rect.top + rect.height / 2);
+    const dist = Math.hypot(dx, dy);
+    if (dist > JOYSTICK_MAX) {
+      dx = (dx / dist) * JOYSTICK_MAX;
+      dy = (dy / dist) * JOYSTICK_MAX;
+    }
+    joystickStick.style.transform = `translate(${dx}px, ${dy}px)`;
+    setDirectionFromVector(dx, dy);
+  }
+
+  function resetJoystick() {
+    joystickStick.style.transform = 'translate(0px, 0px)';
+    input.delete('up');
+    input.delete('down');
+    input.delete('left');
+    input.delete('right');
+  }
+
+  joystickZone.addEventListener('pointerdown', (e) => {
+    joystickPointerId = e.pointerId;
+    try {
+      joystickZone.setPointerCapture(e.pointerId);
+    } catch (err) {
+      // 일부 환경에서 포인터 캡처가 거부될 수 있음 - 무시하고 계속 진행
+    }
+    moveJoystick(e.clientX, e.clientY);
+    e.preventDefault();
+  });
+  joystickZone.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== joystickPointerId) return;
+    moveJoystick(e.clientX, e.clientY);
+    e.preventDefault();
+  });
+  const endJoystick = (e) => {
+    if (e.pointerId !== joystickPointerId) return;
+    joystickPointerId = null;
+    resetJoystick();
+  };
+  joystickZone.addEventListener('pointerup', endJoystick);
+  joystickZone.addEventListener('pointercancel', endJoystick);
+
+  fireBtn.addEventListener('pointerdown', (e) => {
+    fireHeld = true;
+    e.preventDefault();
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((evt) =>
+    fireBtn.addEventListener(evt, () => {
+      fireHeld = false;
+    })
+  );
+
+  weaponBtn.addEventListener('pointerdown', (e) => {
+    if (game.state === 'PLAYING') game.player.toggleWeapon();
+    e.preventDefault();
+  });
+
   const stageClearBtn = document.getElementById('next-stage-btn');
 
   document.getElementById('start-btn').addEventListener('click', startGame);
