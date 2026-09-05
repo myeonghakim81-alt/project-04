@@ -50,6 +50,46 @@ const SFX = (function () {
     src.start();
   }
 
+  // 탱크 이동 엔진음 - 매 프레임 새로 만들지 않고, 계속 돌아가는 저음 오실레이터 +
+  // 트레드(무한궤도) 노이즈를 한 번만 만들어두고 이동 여부에 따라 볼륨만 부드럽게
+  // 올렸다 내린다(클릭 잡음 방지). 아주 작게(target 0.035) 넣는다.
+  let engineGain = null;
+  let engineStarted = false;
+  let engineMoving = false;
+
+  function ensureEngine() {
+    const ac = ensureCtx();
+    if (!ac || engineStarted) return;
+    engineStarted = true;
+
+    engineGain = ac.createGain();
+    engineGain.gain.value = 0;
+    engineGain.connect(ac.destination);
+
+    const hum = ac.createOscillator();
+    hum.type = 'triangle';
+    hum.frequency.value = 68;
+    hum.connect(engineGain);
+    hum.start();
+
+    const bufferSize = ac.sampleRate * 2;
+    const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const treadSrc = ac.createBufferSource();
+    treadSrc.buffer = buffer;
+    treadSrc.loop = true;
+    const treadFilter = ac.createBiquadFilter();
+    treadFilter.type = 'lowpass';
+    treadFilter.frequency.value = 250;
+    const treadGain = ac.createGain();
+    treadGain.gain.value = 0.5; // engineGain 안에서의 상대 비율
+    treadSrc.connect(treadFilter);
+    treadFilter.connect(treadGain);
+    treadGain.connect(engineGain);
+    treadSrc.start();
+  }
+
   return {
     // 모바일 자동재생 정책 때문에 반드시 첫 사용자 입력(타이틀 클릭 등) 안에서 호출해야 함
     unlock() {
@@ -86,6 +126,18 @@ const SFX = (function () {
     },
     gameOver() {
       tone(220, 0.6, 'sawtooth', 0.2, 55);
+    },
+    // 이동 입력이 있는 동안 true로, 멈추면 false로 매 프레임 호출하면 됨 (중복 호출 안전)
+    setMoving(moving) {
+      const ac = ensureCtx();
+      if (!ac) return;
+      ensureEngine();
+      if (moving === engineMoving) return;
+      engineMoving = moving;
+      const now = ac.currentTime;
+      engineGain.gain.cancelScheduledValues(now);
+      engineGain.gain.setValueAtTime(engineGain.gain.value, now);
+      engineGain.gain.linearRampToValueAtTime(moving ? 0.035 : 0, now + (moving ? 0.08 : 0.15));
     },
   };
 })();

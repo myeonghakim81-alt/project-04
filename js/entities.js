@@ -52,6 +52,8 @@ class Player {
     if (input.has('left')) dx -= 1;
     if (input.has('right')) dx += 1;
 
+    SFX.setMoving(dx !== 0 || dy !== 0);
+
     if (dx !== 0 || dy !== 0) {
       const len = Math.hypot(dx, dy);
       dx /= len;

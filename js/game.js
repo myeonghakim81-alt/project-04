@@ -451,6 +451,7 @@
 
   function triggerStageClear() {
     game.state = 'STAGE_CLEAR';
+    SFX.setMoving(false); // 클리어 순간 이동 중이었어도 엔진음이 계속 남지 않도록
     SFX.stageClear();
     const bonus = Math.round(game.timeLeft * TIME_BONUS_PER_SEC * game.diff.scoreMul);
     game.score += bonus;
@@ -476,6 +477,7 @@
 
   function triggerGameOver(reason) {
     game.state = 'GAME_OVER';
+    SFX.setMoving(false); // 게임오버 순간 이동 중이었어도 엔진음이 계속 남지 않도록
     SFX.gameOver();
     gameOverTitle.textContent = 'GAME OVER';
     const reasonText =
