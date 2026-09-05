@@ -1,4 +1,4 @@
-# 탱크 아케이드 - 프로토타입 (v0.14)
+# 탱크 아케이드 - 프로토타입 (v0.15)
 
 `tank_arcade_gdd.md` 기획서의 "11. 프로토타입 범위 제안 (v0.1 MVP)"를 기반으로 만든 플레이 가능한 웹 프로토타입입니다.
 순수 HTML5 Canvas + Vanilla JS로 제작되어 별도 빌드 과정 없이 바로 실행할 수 있습니다.
@@ -111,6 +111,17 @@ MVP 이후 확장으로, 스테이지를 클리어하면 다음 스테이지로 
 
 - **탱크 이동 엔진음 추가**: 이동 방향키를 누르고 있는 동안 아주 작은 볼륨(0.035)의 저음 엔진 허밍 + 무한궤도 노이즈가 재생됩니다. 매 프레임 소리를 새로 만들면 딱딱거리는 잡음이 생기므로, 오실레이터와 루프 노이즈를 한 번만 만들어 계속 재생해두고 이동 여부에 따라 게인만 부드럽게(0.08~0.15초) 올렸다 내리는 방식(`SFX.setMoving()`)으로 구현했습니다. 스테이지 클리어·게임오버로 전환되는 순간 이동 중이었어도 엔진음이 계속 남지 않도록 명시적으로 꺼줍니다.
 
+## v0.15에서 추가된 내용 - PWA화 + 플레이스토어(Android) 패키징 기반 마련
+
+웹페이지 형태는 그대로 유지하면서, "설치 가능한 앱"과 "플레이스토어 출시용 Android 앱" 두 갈래로 확장할 수 있도록 기반을 추가했습니다.
+
+- **PWA(Progressive Web App) 전환**: `manifest.json`(앱 이름/아이콘/테마색/standalone 표시)과 `sw.js`(오프라인 캐싱 서비스워커)를 추가했습니다. 이제 모바일/데스크톱 브라우저에서 "홈 화면에 추가" 또는 주소창의 설치 버튼으로 이 웹페이지를 독립 앱처럼 설치할 수 있고, 한 번 로드된 후에는 네트워크 없이도 재실행됩니다. 기존 웹페이지 접속 방식은 전혀 바뀌지 않습니다.
+- **아이콘 세트 생성**: `icons/`에 512/192/180/32px 및 마스커블(원형 크롭 대응) 아이콘을 추가했습니다(게임 내 탱크 그래픽을 재사용한 네온 그린 로고).
+- **Capacitor 기반 Android 프로젝트 스캐폴딩**: `npx cap add android`로 `android/` 네이티브 프로젝트를 생성해 저장소에 포함시켰습니다. 이 웹 게임을 코드 수정 없이 그대로 WebView로 감싼 구조로, Android Studio로 열어 바로 빌드할 수 있습니다. 앱 아이콘(적응형 아이콘 전 해상도)과 스플래시 화면도 `@capacitor/assets`로 자동 생성했습니다.
+  - `webDir`은 저장소 루트가 아니라 `www/`로 지정했습니다 (루트를 그대로 가리키면 `node_modules`, `android/`, `.git`까지 앱에 패키징되어 버리기 때문). `npm run sync:www`가 루트의 `index.html`/`style.css`/`manifest.json`/`sw.js`/`js/`/`icons/`를 `www/`로 복사하며, `npm run cap:sync`는 이 동기화 후 안드로이드 프로젝트에 반영까지 한 번에 처리합니다. `www/`는 빌드 산출물이라 git에는 커밋하지 않습니다(`.gitignore`).
+  - 패키지명(`applicationId`)은 우선 `com.myeonghakim.tankarcade`로 지정해 두었습니다. **플레이스토어에 한 번 게시하면 이후 절대 변경할 수 없는 값**이므로, 실제 출시 전에 원하는 값으로 바꿔도 됩니다 (`android/app/build.gradle`의 `applicationId`, `capacitor.config.json`의 `appId`, `android/app/src/main/res/values/strings.xml`의 `package_name`/`custom_url_scheme`를 모두 같은 값으로 맞춰야 합니다).
+- **이 환경에서 하지 못한 것**: 이 세션에는 Android SDK가 설치되어 있지 않고(`dl.google.com` 접근도 차단되어 있어 이 세션에서 직접 설치도 불가), 실제 APK/AAB 빌드·서명·플레이스토어 업로드는 진행하지 못했습니다. 아래 "플레이스토어 출시까지 남은 작업"에 정리된 대로, Android Studio가 설치된 로컬 PC와 Google Play Console 계정에서 이어서 진행하면 됩니다.
+
 ## 프로토타입 단계에서 내린 결정 (기획서 10번 Open Questions)
 
 - **플랫폼/스택**: 웹 브라우저, HTML5 Canvas + Vanilla JS (빌드 불필요, 가장 빠른 프로토타이핑)
@@ -124,9 +135,47 @@ MVP 이후 확장으로, 스테이지를 클리어하면 다음 스테이지로 
 ```
 index.html          HTML 뼈대 + 시작/클리어/게임오버 오버레이
 style.css           레이아웃 및 오버레이 스타일
+manifest.json        PWA 매니페스트 (앱 이름/아이콘/테마색)
+sw.js                오프라인 캐싱용 서비스워커
+icons/               PWA/Android 앱 아이콘 원본 (512/192/180/32px, 마스커블)
 js/constants.js      게임 밸런스/치수 상수
 js/sfx.js            Web Audio API 기반 효과음 합성 (배경음악 없음)
 js/maze.js           시드 기반 미로 생성, 렌더링, 충돌 판정
 js/entities.js        Player / Enemy / Bullet / Item 클래스
 js/game.js            게임 루프, 상태 머신, 입력, HUD, 스폰/충돌 처리
+
+capacitor.config.json Capacitor 설정 (appId, appName, webDir)
+package.json          npm 스크립트 (sync:www, cap:sync, cap:open)
+scripts/sync-www.js    루트 웹 소스를 www/(Android 빌드용)로 복사
+resources/            앱 아이콘/스플래시 원본 (npx capacitor-assets generate 입력)
+android/              Capacitor로 생성된 네이티브 Android 프로젝트 (Android Studio로 열기)
 ```
+
+## 웹페이지로 배포하기
+
+지금처럼 정적 파일이므로 GitHub Pages, Netlify, Vercel, Cloudflare Pages 등 아무 정적 호스팅에 저장소 루트를 그대로 올리면 됩니다. HTTPS로 서비스되어야 서비스워커(오프라인 캐싱, PWA 설치)가 동작합니다(로컬 `http://localhost`는 예외적으로 허용됨). 별도 빌드 과정이 없으므로 저장소를 그대로 배포 대상에 연결하기만 하면 됩니다.
+
+## 플레이스토어 출시까지 남은 작업
+
+이 저장소에는 Android 프로젝트 뼈대(`android/`)와 아이콘/스플래시까지 준비되어 있습니다. 다만 이 개발 환경에는 Android SDK가 없고 Google 서버(`dl.google.com`) 접근도 막혀 있어, 실제 APK/AAB를 빌드하고 서명해서 업로드하는 마지막 단계는 **Android Studio가 설치된 로컬 PC**와 **Google Play Console 개발자 계정**에서 진행해야 합니다. 순서대로:
+
+1. **패키지명 확정** (선택): 게시 후에는 절대 못 바꾸므로, `com.myeonghakim.tankarcade`를 그대로 쓸지 먼저 정하세요. 바꾸려면 `android/app/build.gradle`의 `applicationId`, `capacitor.config.json`의 `appId`, `android/app/src/main/res/values/strings.xml`의 `package_name`/`custom_url_scheme` 3곳을 동일하게 수정합니다.
+2. **로컬에 Android Studio 설치**: https://developer.android.com/studio 에서 설치 (Android SDK가 함께 설치됩니다).
+3. **저장소 클론 후 프로젝트 열기**:
+   ```bash
+   git clone <이 저장소 주소>
+   cd project-04
+   npm install
+   npm run cap:sync   # www/ 동기화 + android 프로젝트에 웹 자산 반영
+   npx cap open android   # Android Studio 실행
+   ```
+4. **에뮬레이터/실기기로 테스트**: Android Studio에서 Run ▶ 버튼으로 바로 실행해 실제 안드로이드 환경에서 조작감·효과음·히든 강화 발사까지 확인하세요.
+5. **서명용 릴리즈 키 생성 및 서명된 AAB 빌드**: Android Studio 메뉴 `Build > Generate Signed Bundle / APK`에서 Android App Bundle(.aab)을 선택하고, 새 키스토어를 만들어 서명합니다. **이 키스토어 파일과 비밀번호는 반드시 안전하게 백업**하세요(분실 시 같은 앱으로 업데이트를 올릴 수 없습니다). Google Play App Signing을 함께 사용하면 이후 키 분실 위험을 줄일 수 있습니다.
+6. **Google Play Console 개발자 계정 등록**: https://play.google.com/console 에서 최초 1회 $25 등록비를 내고 계정을 만듭니다 (사람이 직접 결제/본인인증을 해야 하는 부분이라 대신 진행할 수 없습니다).
+7. **새 앱 만들기 + 스토어 등록정보 작성**: 앱 이름(예: 탱크 아케이드), 짧은 설명/자세한 설명(한국어), 스크린샷(휴대폰 최소 2장, 실제 플레이 화면 캡처 권장), 512×512 고해상도 아이콘(`icons/playstore-icon-1024.png`를 512×512로 리사이즈하거나 그대로 업로드 가능한 사이즈 확인), 기능 그래픽(1024×500, 별도 제작 필요), 카테고리(게임 > 아케이드) 등을 입력합니다.
+8. **개인정보처리방침 URL 준비**: 이 게임은 서버 통신이나 개인정보 수집이 전혀 없지만, 플레이 콘솔은 대부분의 앱에 개인정보처리방침 URL을 요구합니다. "수집하는 정보 없음"이라는 내용의 간단한 페이지를 만들어 URL만 등록하면 됩니다 (예: 이 저장소를 GitHub Pages로 올린 뒤 같은 도메인에 `privacy.html` 한 장 추가).
+9. **콘텐츠 등급 설문 + 데이터 안전 섹션 작성**: Play Console 안내에 따라 설문에 답합니다. 폭력성은 만화적/추상적 수준(탱크 대전)이라고 사실대로 기재하면 됩니다. 데이터 수집 항목은 전부 "없음"으로 표시하면 됩니다.
+10. **내부 테스트 트랙에 먼저 업로드**: 처음부터 프로덕션(전체 공개)에 올리지 말고, 내부 테스트 → (원하면) 비공개/공개 테스트를 거쳐 실제 기기에서 한 번 더 검증한 뒤 프로덕션으로 승격하세요.
+11. **심사 제출**: 위 항목이 모두 채워지면 검토 제출이 가능해집니다. 보통 며칠 내로 결과가 나옵니다.
+
+이 중 1~4번(패키지명 확정, 로컬 빌드 환경 준비, 실기기 테스트)까지는 코드/설정 작업이라 필요하면 제가 계속 도와드릴 수 있고, 5번 이후(키 서명, 계정 결제, 스토어 등록정보, 심사 제출)는 본인 명의의 계정과 결제, 실물 파일(키스토어) 보관이 필요해 직접 진행하셔야 하는 부분입니다.

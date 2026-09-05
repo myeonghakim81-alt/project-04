@@ -1,0 +1,20 @@
+{
+  "name": "tank-arcade",
+  "version": "0.15.0",
+  "description": "탱크 아케이드 - HTML5 Canvas 아케이드 게임 (웹 + Capacitor Android 래핑)",
+  "private": true,
+  "scripts": {
+    "serve": "http-server . -p 8080",
+    "sync:www": "node scripts/sync-www.js",
+    "cap:sync": "npm run sync:www && cap sync android",
+    "cap:open": "npm run sync:www && cap sync android && cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.1"
+  }
+}

@@ -2,13 +2,21 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>탱크 아케이드 - 프로토타입</title>
 <link rel="stylesheet" href="style.css" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#04140c" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="탱크 아케이드" />
 </head>
 <body>
   <div id="game-wrap">
-    <h1>탱크 아케이드 <span>프로토타입 v0.14</span></h1>
+    <h1>탱크 아케이드 <span>프로토타입 v0.15</span></h1>
     <div id="stage-container">
       <canvas id="game-canvas"></canvas>
 
@@ -83,5 +91,12 @@
   <script src="js/maze.js"></script>
   <script src="js/entities.js"></script>
   <script src="js/game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

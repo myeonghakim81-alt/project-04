@@ -1,0 +1,16 @@
+{
+  "name": "탱크 아케이드",
+  "short_name": "탱크아케이드",
+  "description": "미로 벽을 부수고 길을 뚫어 총 100 스테이지를 돌파하는 탱크 아케이드 게임",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#04140c",
+  "theme_color": "#04140c",
+  "lang": "ko",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
