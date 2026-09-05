@@ -13,6 +13,8 @@ class Player {
     this.cooldown = 0;
     this.invuln = 0;
     this.alive = true;
+    this.charging = false;
+    this.chargeScale = 1;
   }
 
   toggleWeapon() {
@@ -23,6 +25,15 @@ class Player {
     if (!this.alive) return;
     if (this.invuln > 0) this.invuln -= dt;
     if (this.cooldown > 0) this.cooldown -= dt;
+
+    const targetScale = this.charging ? PLAYER_CHARGE_SCALE : 1;
+    if (this.chargeScale < targetScale) {
+      const growRate = (PLAYER_CHARGE_SCALE - 1) / CHARGE_HOLD_TIME;
+      this.chargeScale = Math.min(targetScale, this.chargeScale + growRate * dt);
+    } else if (this.chargeScale > targetScale) {
+      const shrinkRate = (PLAYER_CHARGE_SCALE - 1) / 0.12;
+      this.chargeScale = Math.max(targetScale, this.chargeScale - shrinkRate * dt);
+    }
 
     let dx = 0;
     let dy = 0;
@@ -95,7 +106,15 @@ class Player {
 
   draw(ctx) {
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2 === 0) return; // 피격 무적 점멸
-    drawTankShape(ctx, this.x, this.y, this.angle, '#3ddc84', '#1f7a44');
+    if (this.chargeScale !== 1) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(this.chargeScale, this.chargeScale);
+      drawTankShape(ctx, 0, 0, this.angle, '#3ddc84', '#1f7a44');
+      ctx.restore();
+    } else {
+      drawTankShape(ctx, this.x, this.y, this.angle, '#3ddc84', '#1f7a44');
+    }
   }
 }
 
