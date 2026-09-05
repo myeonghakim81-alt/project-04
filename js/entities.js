@@ -83,6 +83,8 @@ class Player {
     const speed = type === 'special' ? BULLET_SPEED_SPECIAL : BULLET_SPEED_NORMAL;
     const bx = this.x + Math.cos(this.angle) * (this.radius + 6);
     const by = this.y + Math.sin(this.angle) * (this.radius + 6);
+    if (type === 'special') SFX.shootSpecial();
+    else SFX.shoot();
     return new Bullet(
       bx, by, Math.cos(this.angle) * speed, Math.sin(this.angle) * speed,
       type, 'player', type === 'special'
@@ -93,6 +95,7 @@ class Player {
   fireCharged() {
     const bx = this.x + Math.cos(this.angle) * (this.radius + 6);
     const by = this.y + Math.sin(this.angle) * (this.radius + 6);
+    SFX.shootSpecial();
     return new Bullet(
       bx, by, Math.cos(this.angle) * BULLET_SPEED_SPECIAL, Math.sin(this.angle) * BULLET_SPEED_SPECIAL,
       'special', 'player', true
@@ -101,6 +104,7 @@ class Player {
 
   takeHit() {
     if (this.invuln > 0 || !this.alive) return false;
+    SFX.playerHit();
     this.energy--;
     this.invuln = PLAYER_INVULN_TIME;
     if (this.energy <= 0) {

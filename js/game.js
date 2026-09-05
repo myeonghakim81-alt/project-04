@@ -62,7 +62,7 @@
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
       if (!weaponTogglePressed) {
         weaponTogglePressed = true;
-        if (game.state === 'PLAYING') game.player.toggleWeapon();
+        if (game.state === 'PLAYING') { game.player.toggleWeapon(); SFX.weaponSwitch(); }
       }
       e.preventDefault();
     }
@@ -205,12 +205,14 @@
   );
 
   weaponBtn.addEventListener('pointerdown', (e) => {
-    if (game.state === 'PLAYING') game.player.toggleWeapon();
+    if (game.state === 'PLAYING') { game.player.toggleWeapon(); SFX.weaponSwitch(); }
     e.preventDefault();
   });
 
   // ---- 타이틀 / 난이도 선택 ----
-  titleScreen.addEventListener('click', goToDifficultySelect);
+  // 모바일 자동재생 정책상 오디오는 반드시 사용자 입력 안에서 시작해야 하므로,
+  // 게임의 첫 클릭/탭인 타이틀 화면 클릭에서 오디오 컨텍스트를 미리 깨워둔다.
+  titleScreen.addEventListener('click', () => { SFX.unlock(); goToDifficultySelect(); });
 
   document.querySelectorAll('.diff-card').forEach((card) => {
     card.addEventListener('click', () => chooseDifficulty(card.dataset.diff));
@@ -341,6 +343,7 @@
     if (r < 0 || c < 0 || r >= ROWS || c >= COLS) return;
     if (game.grid[r][c] === WALL_BREAKABLE) {
       game.grid[r][c] = WALL_NONE;
+      SFX.wallBreak();
       addScore(SCORE_WALL);
       tryDropItem(c * TILE + TILE / 2, r * TILE + TILE / 2, Math.min(1, ITEM_DROP_CHANCE_WALL * game.diff.itemDropMul));
     }
@@ -399,9 +402,11 @@
             bullet.alive = false;
             if (!enemy.alive) {
               if (enemy.kind === 'boss') {
+                SFX.bossKill();
                 addScore(SCORE_BOSS);
                 tryDropItem(enemy.x, enemy.y, 1); // 보스는 아이템 드랍 확정
               } else {
+                SFX.enemyKill();
                 addScore(SCORE_ENEMY);
                 tryDropItem(enemy.x, enemy.y, Math.min(1, ITEM_DROP_CHANCE_ENEMY * game.diff.itemDropMul));
               }
@@ -416,6 +421,7 @@
       item.update(dt);
       if (Math.hypot(item.x - player.x, item.y - player.y) < item.radius + player.radius) {
         item.alive = false;
+        SFX.itemPickup();
         addScore(SCORE_ITEM);
         if (item.type === 'ammo') player.specialAmmo += ITEM_AMMO_GRANT;
         else player.heal(ITEM_ENERGY_HEAL);
@@ -445,6 +451,7 @@
 
   function triggerStageClear() {
     game.state = 'STAGE_CLEAR';
+    SFX.stageClear();
     const bonus = Math.round(game.timeLeft * TIME_BONUS_PER_SEC * game.diff.scoreMul);
     game.score += bonus;
 
@@ -469,6 +476,7 @@
 
   function triggerGameOver(reason) {
     game.state = 'GAME_OVER';
+    SFX.gameOver();
     gameOverTitle.textContent = 'GAME OVER';
     const reasonText =
       reason === 'time' ? '전체 제한시간 초과' :
