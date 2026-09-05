@@ -186,6 +186,23 @@
   // 우리 포인터 이벤트보다 먼저 터치를 가로채 pointercancel을 유발할 수 있음 - 이를 차단
   fireBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
+  // Pointer Events는 브라우저/웹뷰(카카오톡 인앱브라우저 등)마다 캡처·경계 판정 구현이
+  // 미묘하게 달라 신뢰하기 어려울 수 있으므로, 더 원초적이고 표준화된 Touch Events로도
+  // 동일한 로직을 걸어 이중 안전장치를 둔다. touchend는 손가락이 화면 어디로 움직였든
+  // 항상 touchstart가 시작된 요소로 전달되므로 "버튼 밖으로 벗어남" 판정 자체가 없다.
+  // handleFirePress/handleFireRelease는 이미 중복 호출에 안전하도록 가드되어 있어
+  // 포인터 이벤트와 함께 걸려도 문제없다.
+  fireBtn.addEventListener('touchstart', (e) => {
+    handleFirePress();
+    e.preventDefault();
+  }, { passive: false });
+  ['touchend', 'touchcancel'].forEach((evt) =>
+    fireBtn.addEventListener(evt, (e) => {
+      handleFireRelease();
+      e.preventDefault();
+    }, { passive: false })
+  );
+
   weaponBtn.addEventListener('pointerdown', (e) => {
     if (game.state === 'PLAYING') game.player.toggleWeapon();
     e.preventDefault();
