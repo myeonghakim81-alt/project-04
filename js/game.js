@@ -172,6 +172,10 @@
       handleFireRelease();
     })
   );
+  // 모바일에서 발사 버튼을 히든 강화 발사에 필요한 시간(CHARGE_HOLD_TIME) 이상 누르고 있으면
+  // iOS/Android가 자체적으로 "길게 누르기" 제스처(컨텍스트 메뉴, 콜아웃, 텍스트 선택)로 인식해
+  // 우리 포인터 이벤트보다 먼저 터치를 가로채 pointercancel을 유발할 수 있음 - 이를 차단
+  fireBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
   weaponBtn.addEventListener('pointerdown', (e) => {
     if (game.state === 'PLAYING') game.player.toggleWeapon();

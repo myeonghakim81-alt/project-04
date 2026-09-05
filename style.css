@@ -295,6 +295,7 @@ button.secondary:hover {
     -webkit-user-select: none;
     user-select: none;
     touch-action: none;
+    -webkit-touch-callout: none;
   }
 
   .joystick-zone {
