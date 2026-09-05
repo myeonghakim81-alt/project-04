@@ -164,10 +164,19 @@
   joystickZone.addEventListener('pointercancel', endJoystick);
 
   fireBtn.addEventListener('pointerdown', (e) => {
+    // 조이스틱과 동일하게 포인터를 캡처해야, 손가락이 버튼 밖으로 살짝 벗어나도
+    // (0.45초 이상 누르고 있으면 미세하게 흔들리기 매우 쉬움) pointerleave로 오인해
+    // 히든 강화 발사가 중간에 끊기지 않는다. 캡처된 포인터는 releasePointerCapture나
+    // 실제 pointerup/pointercancel 전까지는 계속 이 버튼으로 이벤트가 전달된다.
+    try {
+      fireBtn.setPointerCapture(e.pointerId);
+    } catch (err) {
+      // 일부 환경에서 포인터 캡처가 거부될 수 있음 - 무시하고 계속 진행
+    }
     handleFirePress();
     e.preventDefault();
   });
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach((evt) =>
+  ['pointerup', 'pointercancel'].forEach((evt) =>
     fireBtn.addEventListener(evt, () => {
       handleFireRelease();
     })
