@@ -13,6 +13,7 @@ class Player {
     this.cooldown = 0;
     this.invuln = 0;
     this.alive = true;
+    this.fireHeld = false;
     this.charging = false;
     this.chargeScale = 1;
   }
@@ -26,6 +27,9 @@ class Player {
     if (this.invuln > 0) this.invuln -= dt;
     if (this.cooldown > 0) this.cooldown -= dt;
 
+    // 매 프레임 탄약 상태를 다시 확인 (버튼을 누른 "순간"에만 체크하면, 마지막 한 발을
+    // 쏘자마자 계속 누르고 있는 경우처럼 탄약이 0이 되는 시점을 놓쳐 커지는 연출이 빠질 수 있음)
+    this.charging = this.fireHeld && this.specialAmmo <= 0;
     const targetScale = this.charging ? PLAYER_CHARGE_SCALE : 1;
     if (this.chargeScale < targetScale) {
       const growRate = (PLAYER_CHARGE_SCALE - 1) / CHARGE_HOLD_TIME;
@@ -106,14 +110,21 @@ class Player {
 
   draw(ctx) {
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2 === 0) return; // 피격 무적 점멸
+    const charged = this.chargeScale > 1.01;
+    const bodyColor = charged ? '#ffcf4d' : '#3ddc84';
+    const darkColor = charged ? '#8a6300' : '#1f7a44';
     if (this.chargeScale !== 1) {
       ctx.save();
       ctx.translate(this.x, this.y);
+      if (charged) {
+        ctx.shadowColor = 'rgba(255, 207, 77, 0.9)';
+        ctx.shadowBlur = 16;
+      }
       ctx.scale(this.chargeScale, this.chargeScale);
-      drawTankShape(ctx, 0, 0, this.angle, '#3ddc84', '#1f7a44');
+      drawTankShape(ctx, 0, 0, this.angle, bodyColor, darkColor);
       ctx.restore();
     } else {
-      drawTankShape(ctx, this.x, this.y, this.angle, '#3ddc84', '#1f7a44');
+      drawTankShape(ctx, this.x, this.y, this.angle, bodyColor, darkColor);
     }
   }
 }

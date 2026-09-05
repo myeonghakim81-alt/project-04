@@ -34,9 +34,7 @@
   function handleFirePress() {
     if (fireHoldStartTime !== null) return; // 이미 누르고 있음 (키 반복 등) - 무시
     fireHoldStartTime = performance.now();
-    if (game.state === 'PLAYING' && game.player.specialAmmo <= 0) {
-      game.player.charging = true;
-    }
+    if (game.player) game.player.fireHeld = true;
     if (game.state === 'PLAYING' && game.player.canFire()) {
       game.bullets.push(game.player.fire());
     }
@@ -46,7 +44,7 @@
     if (fireHoldStartTime === null) return;
     const heldSeconds = (performance.now() - fireHoldStartTime) / 1000;
     fireHoldStartTime = null;
-    if (game.player) game.player.charging = false;
+    if (game.player) game.player.fireHeld = false;
     if (game.state === 'PLAYING' && game.player.specialAmmo <= 0 && heldSeconds >= CHARGE_HOLD_TIME) {
       game.bullets.push(game.player.fireCharged());
     }
@@ -93,7 +91,7 @@
   window.addEventListener('blur', () => {
     input.clear();
     fireHoldStartTime = null;
-    if (game.player) game.player.charging = false;
+    if (game.player) game.player.fireHeld = false;
     weaponTogglePressed = false;
     joystickPointerId = null;
     resetJoystick();
