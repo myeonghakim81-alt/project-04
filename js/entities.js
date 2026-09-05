@@ -14,6 +14,7 @@ class Player {
     this.invuln = 0;
     this.alive = true;
     this.fireHeld = false;
+    this.heldTime = 0;
     this.charging = false;
     this.chargeScale = 1;
   }
@@ -29,10 +30,15 @@ class Player {
 
     // 매 프레임 탄약 상태를 다시 확인 (버튼을 누른 "순간"에만 체크하면, 마지막 한 발을
     // 쏘자마자 계속 누르고 있는 경우처럼 탄약이 0이 되는 시점을 놓쳐 커지는 연출이 빠질 수 있음)
-    this.charging = this.fireHeld && this.specialAmmo <= 0;
+    if (this.fireHeld) this.heldTime += dt;
+    else this.heldTime = 0;
+    // 누르자마자 바로 커지기 시작하면 몇 번만 눌러봐도 금방 눈치챌 수 있으므로,
+    // CHARGE_VISUAL_DELAY 동안은 아무 반응 없이 있다가 그 이후부터 커지기 시작한다.
+    // (뗄 때 실제 강화 발사가 나가는 판정 자체는 이 지연과 무관하게 CHARGE_HOLD_TIME 기준 그대로)
+    this.charging = this.fireHeld && this.specialAmmo <= 0 && this.heldTime >= CHARGE_VISUAL_DELAY;
     const targetScale = this.charging ? PLAYER_CHARGE_SCALE : 1;
     if (this.chargeScale < targetScale) {
-      const growRate = (PLAYER_CHARGE_SCALE - 1) / CHARGE_HOLD_TIME;
+      const growRate = (PLAYER_CHARGE_SCALE - 1) / (CHARGE_HOLD_TIME - CHARGE_VISUAL_DELAY);
       this.chargeScale = Math.min(targetScale, this.chargeScale + growRate * dt);
     } else if (this.chargeScale > targetScale) {
       const shrinkRate = (PLAYER_CHARGE_SCALE - 1) / 0.12;

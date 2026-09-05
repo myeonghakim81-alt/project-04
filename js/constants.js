@@ -25,6 +25,7 @@ const FIRE_COOLDOWN_SPECIAL = 0.5;
 const PLAYER_INVULN_TIME = 1.3;
 const CHARGE_HOLD_TIME = 0.45; // 발사 버튼을 이만큼 눌렀다 떼면(특수탄 0일 때) 강화 발사 - 비공개
 const PLAYER_CHARGE_SCALE = 1.4; // 강화 발사를 위해 누르고 있는 동안 탱크가 커지는 배율 - 비공개
+const CHARGE_VISUAL_DELAY = 0.15; // 누른 직후 이 시간까지는 시각 효과를 보이지 않음(바로 티나는 것 방지) - 비공개
 
 // 미사일
 const BULLET_RADIUS = 5;

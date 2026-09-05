@@ -600,34 +600,7 @@
       if (game.player) game.player.draw(ctx);
       ctx.restore();
       drawHUD();
-      drawDebugOverlay(); // TEMP: 모바일 히든 발사 문제 진단용 - 원인 확인되면 제거 예정
     }
-  }
-
-  // TEMP: 모바일 히든 발사 문제 진단용. game.player의 실시간 상태를 화면에 그대로 노출해서,
-  // 실제 기기에서 무엇이 다르게 동작하는지 눈으로 바로 확인하기 위한 디버그 오버레이.
-  // 원인이 확인되고 나면 이 함수 호출과 정의를 제거할 예정.
-  function drawDebugOverlay() {
-    const p = game.player;
-    if (!p) return;
-    const heldMs = fireHoldStartTime !== null ? Math.round(performance.now() - fireHoldStartTime) : 0;
-    const lines = [
-      `fireHeld=${p.fireHeld} charging=${p.charging} ammo=${p.specialAmmo}`,
-      `scale=${p.chargeScale.toFixed(2)} heldMs=${heldMs}`,
-    ];
-    ctx.save();
-    ctx.font = '11px monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    const boxW = 230;
-    const boxH = lines.length * 14 + 8;
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    ctx.fillRect(4, HUD_TOP + 4, boxW, boxH);
-    ctx.fillStyle = '#ffcf4d';
-    lines.forEach((line, i) => {
-      ctx.fillText(line, 10, HUD_TOP + 8 + i * 14);
-    });
-    ctx.restore();
   }
 
   window.__game = game; // 디버그/테스트용 참조
