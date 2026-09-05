@@ -192,15 +192,16 @@
   // 항상 touchstart가 시작된 요소로 전달되므로 "버튼 밖으로 벗어남" 판정 자체가 없다.
   // handleFirePress/handleFireRelease는 이미 중복 호출에 안전하도록 가드되어 있어
   // 포인터 이벤트와 함께 걸려도 문제없다.
-  fireBtn.addEventListener('touchstart', (e) => {
+  // preventDefault를 호출하지 않는다 - 스크롤/줌 방지는 이미 CSS touch-action:none이
+  // 담당하고 있고, 여기서 preventDefault를 부르면 일부 브라우저에서 버튼의 기본 눌림
+  // 시각효과(:active)와 탭 시 발생하는 미세한 햅틱 피드백까지 함께 억제되어 버린다.
+  fireBtn.addEventListener('touchstart', () => {
     handleFirePress();
-    e.preventDefault();
-  }, { passive: false });
+  });
   ['touchend', 'touchcancel'].forEach((evt) =>
-    fireBtn.addEventListener(evt, (e) => {
+    fireBtn.addEventListener(evt, () => {
       handleFireRelease();
-      e.preventDefault();
-    }, { passive: false })
+    })
   );
 
   weaponBtn.addEventListener('pointerdown', (e) => {
@@ -599,7 +600,34 @@
       if (game.player) game.player.draw(ctx);
       ctx.restore();
       drawHUD();
+      drawDebugOverlay(); // TEMP: 모바일 히든 발사 문제 진단용 - 원인 확인되면 제거 예정
     }
+  }
+
+  // TEMP: 모바일 히든 발사 문제 진단용. game.player의 실시간 상태를 화면에 그대로 노출해서,
+  // 실제 기기에서 무엇이 다르게 동작하는지 눈으로 바로 확인하기 위한 디버그 오버레이.
+  // 원인이 확인되고 나면 이 함수 호출과 정의를 제거할 예정.
+  function drawDebugOverlay() {
+    const p = game.player;
+    if (!p) return;
+    const heldMs = fireHoldStartTime !== null ? Math.round(performance.now() - fireHoldStartTime) : 0;
+    const lines = [
+      `fireHeld=${p.fireHeld} charging=${p.charging} ammo=${p.specialAmmo}`,
+      `scale=${p.chargeScale.toFixed(2)} heldMs=${heldMs}`,
+    ];
+    ctx.save();
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const boxW = 230;
+    const boxH = lines.length * 14 + 8;
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(4, HUD_TOP + 4, boxW, boxH);
+    ctx.fillStyle = '#ffcf4d';
+    lines.forEach((line, i) => {
+      ctx.fillText(line, 10, HUD_TOP + 8 + i * 14);
+    });
+    ctx.restore();
   }
 
   window.__game = game; // 디버그/테스트용 참조
