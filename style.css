@@ -28,8 +28,18 @@ body {
   }
 }
 
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 h1 {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 22px;
   letter-spacing: 1px;
 }
@@ -39,6 +49,17 @@ h1 span {
   font-weight: normal;
   color: #8b93a7;
   margin-left: 8px;
+}
+
+#lang-select {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  border-radius: 6px;
+  border: 1px solid #3a4361;
+  background: #11151f;
+  color: #e8ecf4;
+  cursor: pointer;
 }
 
 #stage-container {
@@ -87,19 +108,6 @@ canvas {
   line-height: 1.6;
 }
 
-.controls-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 18px;
-  font-size: 13px;
-  color: #c3c9db;
-  text-align: left;
-}
-
-.controls-list li {
-  margin: 4px 0;
-}
-
 button {
   padding: 10px 26px;
   font-size: 15px;
@@ -123,16 +131,17 @@ button:active {
 
 .hint {
   max-width: 600px;
-  font-size: 12px;
+  font-size: 10.5px;
   color: #7c8399;
   margin-top: 12px;
   text-align: center;
+  line-height: 1.5;
 }
 
 .mobile-note {
   display: none;
   margin: 4px 0 14px;
-  font-size: 12px;
+  font-size: 10.5px;
   color: #7c8399;
 }
 
@@ -249,9 +258,9 @@ button:active {
 .diff-card[data-diff="hard"] .diff-name { color: #ff5d5d; }
 
 .diff-desc {
-  font-size: 11px;
+  font-size: 10px;
   color: #8b93a7;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 /* ---- 게임오버 버튼 ---- */

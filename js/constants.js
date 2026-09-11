@@ -116,7 +116,7 @@ const MAX_STAGE = 100;
 // ==================== 난이도 ====================
 const DIFFICULTIES = {
   easy: {
-    key: 'easy', label: '이지', sub: '여유로운 진행 · 실패해도 이어하기 가능',
+    key: 'easy',
     color: '#4be08a', colorDark: '#1c5c37',
     maxEnergy: 4, startSpecialAmmo: 4, zeroAmmoGrace: 20,
     stageTimeStart: 110, stageTimeStep: 2, stageTimeMin: 60,
@@ -125,7 +125,7 @@ const DIFFICULTIES = {
     scoreMul: 1.0, allowContinue: true,
   },
   normal: {
-    key: 'normal', label: '노멀', sub: '표준 난이도 · 실패해도 이어하기 가능',
+    key: 'normal',
     color: '#ffd23f', colorDark: '#a97e00',
     maxEnergy: 3, startSpecialAmmo: 3, zeroAmmoGrace: 15,
     stageTimeStart: 90, stageTimeStep: 3, stageTimeMin: 45,
@@ -134,7 +134,7 @@ const DIFFICULTIES = {
     scoreMul: 1.5, allowContinue: true,
   },
   hard: {
-    key: 'hard', label: '하드', sub: '이어하기 없음 · 오직 하이스코어',
+    key: 'hard',
     color: '#ff5d5d', colorDark: '#8a2727',
     maxEnergy: 3, startSpecialAmmo: 2, zeroAmmoGrace: 8,
     stageTimeStart: 75, stageTimeStep: 3.5, stageTimeMin: 35,

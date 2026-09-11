@@ -1,11 +1,12 @@
 // 오프라인/설치형 PWA 지원을 위한 최소한의 서비스워커 (캐시 우선, 네트워크 폴백)
-const CACHE_NAME = 'tank-arcade-v0.14';
+const CACHE_NAME = 'tank-arcade-v0.17';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './manifest.json',
   './js/constants.js',
+  './js/i18n.js',
   './js/sfx.js',
   './js/maze.js',
   './js/entities.js',

@@ -15,6 +15,26 @@
   const continueBtn = document.getElementById('continue-btn');
   const restartBtn = document.getElementById('restart-btn');
   const stageClearBtn = document.getElementById('next-stage-btn');
+  const langSelect = document.getElementById('lang-select');
+
+  // ---- 다국어: 초기 정적 텍스트 적용 + 언어 선택 UI 구성 ----
+  I18N.LANGS.forEach(({ code, label }) => {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = label;
+    langSelect.appendChild(opt);
+  });
+  langSelect.value = I18N.getLang();
+  I18N.applyStatic();
+  langSelect.addEventListener('change', () => {
+    I18N.setLang(langSelect.value);
+    renderStageClearText();
+    renderGameOverText();
+  });
+
+  function diffI18nKey(key) {
+    return 'diff' + key.charAt(0).toUpperCase() + key.slice(1);
+  }
 
   const KEY_MAP = {
     ArrowUp: 'up', KeyW: 'up',
@@ -449,6 +469,36 @@
     }
   }
 
+  // 언어를 바꿔도 현재 화면에 떠 있는 결과 문구가 즉시 갱신되도록, 마지막 결과를
+  // 기억해두었다가 renderStageClearText()/renderGameOverText()로 다시 그릴 수 있게 한다.
+  let lastStageClear = null; // { kind: 'all' | 'boss' | 'normal', bonus }
+  let lastGameOverReasonKey = null;
+
+  function renderStageClearText() {
+    if (!lastStageClear) return;
+    const { kind, bonus } = lastStageClear;
+    if (kind === 'all') {
+      stageClearTitle.textContent = I18N.t('scAllClearTitle');
+      stageClearInfo.innerHTML =
+        `${I18N.t('lblStagesCleared')}: ${MAX_STAGE}/${MAX_STAGE} (${I18N.t(diffI18nKey(game.diff.key))})<br/>${I18N.t('lblScore')}: ${game.score}`;
+      stageClearBtn.textContent = I18N.t('scBtnToDifficulty');
+    } else {
+      stageClearTitle.textContent = kind === 'boss' ? I18N.t('scBossDownTitle') : I18N.t('scStageClearTitle');
+      stageClearInfo.innerHTML =
+        `${I18N.t('lblBonus')}: +${bonus}<br/>${I18N.t('lblTimeLeft')}: ${Math.ceil(game.timeLeft)}s<br/>${I18N.t('lblScore')}: ${game.score}`;
+      stageClearBtn.textContent = I18N.t('scBtnNextStage');
+    }
+  }
+
+  function renderGameOverText() {
+    if (!lastGameOverReasonKey) return;
+    gameOverTitle.textContent = I18N.t('goTitle');
+    gameOverInfo.innerHTML =
+      `${I18N.t(lastGameOverReasonKey)}<br/>${I18N.t('lblStageReached')}: ${game.stage}<br/>${I18N.t('lblScore')}: ${game.score}`;
+    if (game.diff.allowContinue) continueBtn.classList.remove('hidden');
+    else continueBtn.classList.add('hidden');
+  }
+
   function triggerStageClear() {
     game.state = 'STAGE_CLEAR';
     SFX.setMoving(false); // 클리어 순간 이동 중이었어도 엔진음이 계속 남지 않도록
@@ -456,22 +506,8 @@
     const bonus = Math.round(game.timeLeft * TIME_BONUS_PER_SEC * game.diff.scoreMul);
     game.score += bonus;
 
-    if (game.stage >= MAX_STAGE) {
-      stageClearTitle.textContent = '🏆 ALL CLEAR!';
-      stageClearInfo.innerHTML =
-        `전체 ${MAX_STAGE}스테이지를 모두 클리어했습니다! (${game.diff.label})<br/>최종 점수: ${game.score}`;
-      stageClearBtn.textContent = '난이도 선택으로';
-    } else if (game.isBossStage) {
-      stageClearTitle.textContent = '💥 BOSS DOWN!';
-      stageClearInfo.innerHTML =
-        `중간보스 격파!<br/>남은 시간 보너스: +${bonus}<br/>누적 시간: ${Math.ceil(game.timeLeft)}s<br/>현재 점수: ${game.score}`;
-      stageClearBtn.textContent = '다음 스테이지';
-    } else {
-      stageClearTitle.textContent = 'STAGE CLEAR!';
-      stageClearInfo.innerHTML =
-        `스테이지 ${game.stage} 클리어!<br/>남은 시간 보너스: +${bonus}<br/>누적 시간: ${Math.ceil(game.timeLeft)}s<br/>현재 점수: ${game.score}`;
-      stageClearBtn.textContent = '다음 스테이지';
-    }
+    lastStageClear = { kind: game.stage >= MAX_STAGE ? 'all' : game.isBossStage ? 'boss' : 'normal', bonus };
+    renderStageClearText();
     stageClearScreen.classList.remove('hidden');
   }
 
@@ -479,14 +515,11 @@
     game.state = 'GAME_OVER';
     SFX.setMoving(false); // 게임오버 순간 이동 중이었어도 엔진음이 계속 남지 않도록
     SFX.gameOver();
-    gameOverTitle.textContent = 'GAME OVER';
-    const reasonText =
-      reason === 'time' ? '전체 제한시간 초과' :
-      reason === 'ammo_empty' ? '특수탄약 소진 - 제한시간 초과' :
-      '에너지 소진';
-    gameOverInfo.innerHTML = `${reasonText}<br/>도달 스테이지: ${game.stage}<br/>최종 점수: ${game.score}`;
-    if (game.diff.allowContinue) continueBtn.classList.remove('hidden');
-    else continueBtn.classList.add('hidden');
+    lastGameOverReasonKey =
+      reason === 'time' ? 'goReasonTime' :
+      reason === 'ammo_empty' ? 'goReasonAmmo' :
+      'goReasonEnergy';
+    renderGameOverText();
     gameOverScreen.classList.remove('hidden');
   }
 
@@ -518,19 +551,19 @@
 
     ctx.textAlign = 'right';
     ctx.fillStyle = game.timeLeft < 10 ? '#ff5d5d' : '#e8ecf4';
-    ctx.fillText(`TIME ${Math.ceil(game.timeLeft)}s`, CANVAS_W - 12, HUD_TOP / 2);
+    ctx.fillText(`${I18N.t('hudTimeLabel')} ${Math.ceil(game.timeLeft)}s`, CANVAS_W - 12, HUD_TOP / 2);
 
     // 현재 장전된 무기 + 잔여 특수탄 (상단 중앙, 한 그룹으로 가운데 정렬)
-    const weaponLabel = game.player.weapon === 'special' ? '특수' : '일반';
-    const weaponText = `무기: ${weaponLabel}`;
+    const weaponLabel = game.player.weapon === 'special' ? I18N.t('hudWeaponSpecial') : I18N.t('hudWeaponNormal');
+    const weaponText = `${I18N.t('hudWeaponLabel')}: ${weaponLabel}`;
     const weaponColor = game.player.weapon === 'special' ? '#ffd23f' : '#e8ecf4';
     let ammoText, ammoColor;
     if (game.player.specialAmmo > 0) {
-      ammoText = `특수탄 ${game.player.specialAmmo}`;
+      ammoText = `${I18N.t('hudAmmoLabel')} ${game.player.specialAmmo}`;
       ammoColor = '#ffd23f';
     } else {
       const graceLabel = game.ammoGraceTimer !== null ? Math.ceil(game.ammoGraceTimer) : 0;
-      ammoText = `특수탄 0 · ${graceLabel}s`;
+      ammoText = `${I18N.t('hudAmmoLabel')} 0 · ${graceLabel}s`;
       ammoColor = '#ff5d5d';
     }
     const gap = 16;
@@ -546,26 +579,26 @@
     const bottomY = HUD_TOP + PLAY_H + HUD_BOTTOM / 2;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#e8ecf4';
-    const stageText = `STAGE ${game.stage}/${MAX_STAGE}`;
+    const stageText = `${I18N.t('hudStageLabel')} ${game.stage}/${MAX_STAGE}`;
     ctx.fillText(stageText, 12, bottomY);
     const stageWidth = ctx.measureText(stageText).width;
     ctx.fillStyle = game.diff.color;
     ctx.font = 'bold 12px sans-serif';
-    ctx.fillText(game.diff.label, 12 + stageWidth + 10, bottomY);
+    ctx.fillText(I18N.t(diffI18nKey(game.diff.key)), 12 + stageWidth + 10, bottomY);
     ctx.font = 'bold 14px sans-serif';
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8ecf4';
-    ctx.fillText(`SCORE ${game.score}`, CANVAS_W / 2, bottomY);
+    ctx.fillText(`${I18N.t('hudScoreLabel')} ${game.score}`, CANVAS_W / 2, bottomY);
 
     ctx.textAlign = 'right';
     const remaining = game.enemiesToSpawn + game.enemies.length;
     if (game.isBossStage) {
       ctx.fillStyle = '#ff2d55';
-      ctx.fillText('⚠ BOSS', CANVAS_W - 12, bottomY);
+      ctx.fillText(`⚠ ${I18N.t('hudBossLabel')}`, CANVAS_W - 12, bottomY);
     } else {
       ctx.fillStyle = '#e8ecf4';
-      ctx.fillText(`남은 적 ${remaining}`, CANVAS_W - 12, bottomY);
+      ctx.fillText(`${I18N.t('hudEnemiesLabel')} ${remaining}`, CANVAS_W - 12, bottomY);
     }
   }
 

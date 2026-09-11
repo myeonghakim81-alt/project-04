@@ -1,7 +1,7 @@
 {
   "name": "tank-arcade",
-  "version": "0.16.0",
-  "description": "탱크탱크 - HTML5 Canvas 아케이드 게임 (웹 + Capacitor Android 래핑)",
+  "version": "0.17.0",
+  "description": "TANKTANK - HTML5 Canvas arcade game with EN/KO/ZH/JA/ES/FR support (web + Capacitor Android wrapper)",
   "private": true,
   "scripts": {
     "serve": "http-server . -p 8080",

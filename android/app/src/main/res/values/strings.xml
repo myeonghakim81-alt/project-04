@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">탱크탱크</string>
-    <string name="title_activity_main">탱크탱크</string>
+    <string name="app_name">TANKTANK</string>
+    <string name="title_activity_main">TANKTANK</string>
     <string name="package_name">com.myeonghakim.tankarcade</string>
     <string name="custom_url_scheme">com.myeonghakim.tankarcade</string>
 </resources>
