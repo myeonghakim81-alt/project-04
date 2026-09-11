@@ -17,6 +17,8 @@ class Player {
     this.heldTime = 0;
     this.charging = false;
     this.chargeScale = 1;
+    this.speedBoostT = 0; // 탱크 속도 부스트 아이템의 남은 지속 시간
+    this.bulletBoostT = 0; // 미사일 속도 부스트 아이템의 남은 지속 시간
   }
 
   toggleWeapon() {
@@ -27,6 +29,8 @@ class Player {
     if (!this.alive) return;
     if (this.invuln > 0) this.invuln -= dt;
     if (this.cooldown > 0) this.cooldown -= dt;
+    if (this.speedBoostT > 0) this.speedBoostT = Math.max(0, this.speedBoostT - dt);
+    if (this.bulletBoostT > 0) this.bulletBoostT = Math.max(0, this.bulletBoostT - dt);
 
     // 매 프레임 탄약 상태를 다시 확인 (버튼을 누른 "순간"에만 체크하면, 마지막 한 발을
     // 쏘자마자 계속 누르고 있는 경우처럼 탄약이 0이 되는 시점을 놓쳐 커지는 연출이 빠질 수 있음)
@@ -60,9 +64,10 @@ class Player {
       dy /= len;
       this.angle = Math.atan2(dy, dx);
 
-      const nx = this.x + dx * this.speed * dt;
+      const speed = this.speed * (this.speedBoostT > 0 ? ITEM_TANK_SPEED_MUL : 1);
+      const nx = this.x + dx * speed * dt;
       if (!circleHitsWall(grid, nx, this.y, this.radius)) this.x = nx;
-      const ny = this.y + dy * this.speed * dt;
+      const ny = this.y + dy * speed * dt;
       if (!circleHitsWall(grid, this.x, ny, this.radius)) this.y = ny;
     }
 
@@ -81,8 +86,12 @@ class Player {
   fire() {
     const type = this.weapon;
     this.cooldown = type === 'special' ? FIRE_COOLDOWN_SPECIAL : FIRE_COOLDOWN_NORMAL;
-    if (type === 'special') this.specialAmmo--;
-    const speed = type === 'special' ? BULLET_SPEED_SPECIAL : BULLET_SPEED_NORMAL;
+    if (type === 'special') {
+      this.specialAmmo--;
+      this.weapon = 'normal'; // 특수탄은 한 발 쏘면 자동으로 일반탄으로 돌아간다
+    }
+    const boost = this.bulletBoostT > 0 ? ITEM_BULLET_SPEED_MUL : 1;
+    const speed = (type === 'special' ? BULLET_SPEED_SPECIAL : BULLET_SPEED_NORMAL) * boost;
     const bx = this.x + Math.cos(this.angle) * (this.radius + 6);
     const by = this.y + Math.sin(this.angle) * (this.radius + 6);
     if (type === 'special') SFX.shootSpecial();
@@ -95,11 +104,13 @@ class Player {
 
   // 탄약을 소모하지 않는 강화 발사 (특수탄 소진 후 발사 버튼을 길게 눌렀다 뗄 때만 호출됨)
   fireCharged() {
+    const boost = this.bulletBoostT > 0 ? ITEM_BULLET_SPEED_MUL : 1;
+    const speed = BULLET_SPEED_SPECIAL * boost;
     const bx = this.x + Math.cos(this.angle) * (this.radius + 6);
     const by = this.y + Math.sin(this.angle) * (this.radius + 6);
     SFX.shootSpecial();
     return new Bullet(
-      bx, by, Math.cos(this.angle) * BULLET_SPEED_SPECIAL, Math.sin(this.angle) * BULLET_SPEED_SPECIAL,
+      bx, by, Math.cos(this.angle) * speed, Math.sin(this.angle) * speed,
       'special', 'player', true
     );
   }
@@ -120,24 +131,48 @@ class Player {
     this.energy = Math.min(this.maxEnergy, this.energy + amount);
   }
 
+  applyTankSpeedBoost() {
+    this.speedBoostT = ITEM_TANK_SPEED_DURATION;
+  }
+
+  applyBulletSpeedBoost() {
+    this.bulletBoostT = ITEM_BULLET_SPEED_DURATION;
+  }
+
   draw(ctx) {
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2 === 0) return; // 피격 무적 점멸
     const charged = this.chargeScale > 1.01;
     const bodyColor = charged ? '#ffcf4d' : '#3ddc84';
     const darkColor = charged ? '#8a6300' : '#1f7a44';
-    if (this.chargeScale !== 1) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    if (this.speedBoostT > 0 || this.bulletBoostT > 0) {
       ctx.save();
-      ctx.translate(this.x, this.y);
-      if (charged) {
-        ctx.shadowColor = 'rgba(255, 207, 77, 0.9)';
-        ctx.shadowBlur = 16;
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 2;
+      let ringR = 20;
+      if (this.speedBoostT > 0) {
+        ctx.strokeStyle = '#4dd2ff';
+        ctx.beginPath();
+        ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+        ringR += 5;
       }
-      ctx.scale(this.chargeScale, this.chargeScale);
-      drawTankShape(ctx, 0, 0, this.angle, bodyColor, darkColor);
+      if (this.bulletBoostT > 0) {
+        ctx.strokeStyle = '#ff8a3d';
+        ctx.beginPath();
+        ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.restore();
-    } else {
-      drawTankShape(ctx, this.x, this.y, this.angle, bodyColor, darkColor);
     }
+    if (charged) {
+      ctx.shadowColor = 'rgba(255, 207, 77, 0.9)';
+      ctx.shadowBlur = 16;
+    }
+    ctx.scale(this.chargeScale, this.chargeScale);
+    drawTankShape(ctx, 0, 0, this.angle, bodyColor, darkColor);
+    ctx.restore();
   }
 }
 
@@ -160,12 +195,13 @@ class Enemy {
       bulletSpeed: base.bulletSpeed,
       breaksWalls: base.breaksWalls,
       contactDamage: base.contactDamage,
+      phasesWalls: !!base.phasesWalls,
       multiShot: this.kind === 'boss',
     };
     this.angle = Math.random() * Math.PI * 2;
     this.radius = this.kind === 'boss' ? BOSS_RADIUS : ENEMY_RADIUS;
     this.speed = this.stats.speed;
-    this.hp = this.kind === 'boss' ? bossHpForStage(extra.stage || 1) : 1;
+    this.hp = this.kind === 'boss' ? bossHpForStage(extra.stage || 1) : (base.hp || 1);
     this.maxHp = this.hp;
     this.state = 'patrol';
     this.fireCooldown = this.stats.fireCooldown * Math.random();
@@ -220,14 +256,15 @@ class Enemy {
       dy = this.dir.y;
     }
 
+    const hitTest = this.stats.phasesWalls ? circleHitsSolidWall : circleHitsWall;
     const nx = this.x + dx * this.speed * dt;
     const ny = this.y + dy * this.speed * dt;
     let moved = false;
-    if (!circleHitsWall(grid, nx, this.y, this.radius)) {
+    if (!hitTest(grid, nx, this.y, this.radius)) {
       this.x = nx;
       moved = true;
     }
-    if (!circleHitsWall(grid, this.x, ny, this.radius)) {
+    if (!hitTest(grid, this.x, ny, this.radius)) {
       this.y = ny;
       moved = true;
     }
@@ -278,8 +315,15 @@ class Enemy {
       drawTankShape(ctx, 0, 0, this.angle, this.stats.color, this.stats.colorDark);
       ctx.restore();
       this.drawHealthBar(ctx);
+    } else if (this.stats.phasesWalls) {
+      // 유령형: 벽을 통과하는 특성을 반투명하게 표현
+      ctx.save();
+      ctx.globalAlpha = 0.65;
+      drawTankShape(ctx, this.x, this.y, this.angle, this.stats.color, this.stats.colorDark);
+      ctx.restore();
     } else {
       drawTankShape(ctx, this.x, this.y, this.angle, this.stats.color, this.stats.colorDark);
+      if (this.maxHp > 1) this.drawHealthBar(ctx);
     }
   }
 
@@ -353,11 +397,18 @@ class Bullet {
 }
 
 // 아이템
+const ITEM_STYLES = {
+  ammo: { fill: '#ffd23f', stroke: '#a97e00', glyph: 'S' },
+  energy: { fill: '#ff5d8f', stroke: '#8f1d47', glyph: '+' },
+  tankSpeed: { fill: '#4dd2ff', stroke: '#0d6b8a', glyph: 'V' },
+  bulletSpeed: { fill: '#ff8a3d', stroke: '#8a4310', glyph: 'R' },
+};
+
 class Item {
   constructor(x, y, type) {
     this.x = x;
     this.y = y;
-    this.type = type; // 'ammo' | 'energy'
+    this.type = type; // 'ammo' | 'energy' | 'tankSpeed' | 'bulletSpeed'
     this.radius = ITEM_RADIUS;
     this.alive = true;
     this.bob = Math.random() * Math.PI * 2;
@@ -369,15 +420,11 @@ class Item {
 
   draw(ctx) {
     const yOff = Math.sin(this.bob) * 3;
+    const style = ITEM_STYLES[this.type];
     ctx.save();
     ctx.translate(this.x, this.y + yOff);
-    if (this.type === 'ammo') {
-      ctx.fillStyle = '#ffd23f';
-      ctx.strokeStyle = '#a97e00';
-    } else {
-      ctx.fillStyle = '#ff5d8f';
-      ctx.strokeStyle = '#8f1d47';
-    }
+    ctx.fillStyle = style.fill;
+    ctx.strokeStyle = style.stroke;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -387,7 +434,7 @@ class Item {
     ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(this.type === 'ammo' ? 'S' : '+', 0, 1);
+    ctx.fillText(style.glyph, 0, 1);
     ctx.restore();
   }
 }

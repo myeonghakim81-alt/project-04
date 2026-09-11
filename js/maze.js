@@ -63,6 +63,10 @@ function isSolidAt(grid, px, py) {
   return tileAt(grid, px, py) !== WALL_NONE;
 }
 
+function isImpassableSolidAt(grid, px, py) {
+  return tileAt(grid, px, py) === WALL_SOLID;
+}
+
 // 원형(반지름 radius) 충돌체가 (x,y)에 있을 때 벽과 겹치는지 검사
 function circleHitsWall(grid, x, y, radius) {
   const points = [
@@ -77,6 +81,25 @@ function circleHitsWall(grid, x, y, radius) {
   ];
   for (const [px, py] of points) {
     if (isSolidAt(grid, px, py)) return true;
+  }
+  return false;
+}
+
+// circleHitsWall과 동일하지만 파괴 가능한 벽(WALL_BREAKABLE)은 무시한다.
+// 파괴 가능한 벽을 몸으로 그냥 통과하는 유령형 적의 이동 판정에 쓰인다.
+function circleHitsSolidWall(grid, x, y, radius) {
+  const points = [
+    [x - radius, y - radius],
+    [x + radius, y - radius],
+    [x - radius, y + radius],
+    [x + radius, y + radius],
+    [x, y - radius],
+    [x, y + radius],
+    [x - radius, y],
+    [x + radius, y],
+  ];
+  for (const [px, py] of points) {
+    if (isImpassableSolidAt(grid, px, py)) return true;
   }
   return false;
 }

@@ -351,10 +351,25 @@
     }
   }
 
+  const ITEM_DROP_WEIGHTS = [
+    ['ammo', 0.35],
+    ['energy', 0.35],
+    ['tankSpeed', 0.15],
+    ['bulletSpeed', 0.15],
+  ];
+
+  function pickItemType() {
+    let roll = Math.random();
+    for (const [type, weight] of ITEM_DROP_WEIGHTS) {
+      if (roll < weight) return type;
+      roll -= weight;
+    }
+    return ITEM_DROP_WEIGHTS[0][0];
+  }
+
   function tryDropItem(x, y, chance) {
     if (Math.random() > chance) return;
-    const type = Math.random() < 0.5 ? 'ammo' : 'energy';
-    game.items.push(new Item(x, y, type));
+    game.items.push(new Item(x, y, pickItemType()));
   }
 
   function destroyWallAt(x, y) {
@@ -444,7 +459,9 @@
         SFX.itemPickup();
         addScore(SCORE_ITEM);
         if (item.type === 'ammo') player.specialAmmo += ITEM_AMMO_GRANT;
-        else player.heal(ITEM_ENERGY_HEAL);
+        else if (item.type === 'energy') player.heal(ITEM_ENERGY_HEAL);
+        else if (item.type === 'tankSpeed') player.applyTankSpeedBoost();
+        else player.applyBulletSpeedBoost();
       }
     }
 

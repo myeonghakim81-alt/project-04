@@ -33,6 +33,12 @@ const BULLET_SPEED_NORMAL = 380;
 const BULLET_SPEED_SPECIAL = 300;
 const ENEMY_BULLET_SPEED = 240;
 
+// 일시적 버프 아이템
+const ITEM_TANK_SPEED_MUL = 1.6; // 탱크 속도 부스트 배율
+const ITEM_TANK_SPEED_DURATION = 8; // 초
+const ITEM_BULLET_SPEED_MUL = 1.5; // 미사일 속도 부스트 배율
+const ITEM_BULLET_SPEED_DURATION = 8; // 초
+
 // 적
 const ENEMY_RADIUS = 15;
 const ENEMY_SPEED = 68;
@@ -66,6 +72,18 @@ const ENEMY_KINDS = {
     speed: ENEMY_SPEED * 0.85, detectRange: ENEMY_DETECT_RANGE, fireRange: ENEMY_FIRE_RANGE,
     fireCooldown: ENEMY_FIRE_COOLDOWN * 1.2, bulletSpeed: ENEMY_BULLET_SPEED,
     breaksWalls: true, contactDamage: false,
+  },
+  armored: { // 장갑형: 2발 맞아야 격파되는 튼튼한 유닛
+    color: '#9fb0c9', colorDark: '#4a5568',
+    speed: ENEMY_SPEED * 0.7, detectRange: ENEMY_DETECT_RANGE, fireRange: ENEMY_FIRE_RANGE,
+    fireCooldown: ENEMY_FIRE_COOLDOWN, bulletSpeed: ENEMY_BULLET_SPEED,
+    breaksWalls: false, contactDamage: false, hp: 2,
+  },
+  phantom: { // 유령형: 파괴 가능한 벽을 몸으로 그냥 통과해서 접근하는 근접 유닛
+    color: '#d9b8ff', colorDark: '#5a3999',
+    speed: ENEMY_SPEED * 0.9, detectRange: ENEMY_DETECT_RANGE * 1.2, fireRange: 0,
+    fireCooldown: 999, bulletSpeed: 0,
+    breaksWalls: false, contactDamage: true, phasesWalls: true,
   },
   boss: { // 중간보스: 크고 단단하고, 3way 탄막을 쏘는 벽파괴형
     color: '#ff2d55', colorDark: '#7a0f26',
@@ -144,21 +162,35 @@ const DIFFICULTIES = {
   },
 };
 
+// 특수 유형이 diff.varietyStage를 기준으로 얼마나 늦게 추가로 등장하기 시작하는지.
+// 숫자가 늘지 않는 1~50 스테이지 구간에서, 뒤로 갈수록 새로운 특수 기능의 적이
+// 하나씩 풀리면서 난이도가 올라가도록 한다.
+const ENEMY_UNLOCK_OFFSETS = { sniper: 0, rusher: 5, breaker: 10, armored: 15, phantom: 20 };
+
 function pickEnemyKind(stage, diff) {
-  if (stage < diff.varietyStage) return 'basic';
+  const unlocked = ['basic'];
+  for (const kind in ENEMY_UNLOCK_OFFSETS) {
+    if (stage >= diff.varietyStage + ENEMY_UNLOCK_OFFSETS[kind]) unlocked.push(kind);
+  }
+  if (unlocked.length === 1) return 'basic';
+
+  const basicShare = 0.4; // basic 비중은 유지하고, 나머지는 그때까지 풀린 특수 유형에 고르게 분배
   const roll = Math.random();
-  if (roll < 0.4) return 'basic';
-  if (roll < 0.6) return 'sniper';
-  if (roll < 0.8) return 'rusher';
-  return 'breaker';
+  if (roll < basicShare) return 'basic';
+  const specials = unlocked.slice(1);
+  const idx = Math.min(specials.length - 1, Math.floor(((roll - basicShare) / (1 - basicShare)) * specials.length));
+  return specials[idx];
 }
 
+// 스테이지 구조는 [1,2,3,4,보스]가 계속 반복된다(BOSS_STAGE_INTERVAL). 50스테이지까지는
+// 사이클 내 적 수를 1·2·4·8로 고정해 두고(숫자 대신 위에서 풀리는 특수 유형으로 난이도를
+// 올리며), 50스테이지 이후부터는 이 기준 수치를 스테이지가 진행될수록 서서히 키운다.
 function enemiesForStage(stage) {
-  if (stage === 1) return 1;
-  if (stage === 2) return 2;
-  if (stage === 3) return 4;
-  if (stage === 4) return 8;
-  return Math.min(60, Math.round(8 * Math.pow(1.5, stage - 4)));
+  const posInCycle = ((stage - 1) % BOSS_STAGE_INTERVAL) + 1; // 1~4 (5=보스는 이 함수를 쓰지 않음)
+  const base = [1, 2, 4, 8][posInCycle - 1] ?? 8;
+  if (stage <= 50) return base;
+  const growth = 1 + (stage - 50) / 50; // 50스테이지 1배 -> 100스테이지 2배로 서서히 증가
+  return Math.min(60, Math.round(base * growth));
 }
 
 function timeLimitForStage(stage, diff) {
