@@ -1,6 +1,6 @@
 {
-  "name": "탱크 아케이드",
-  "short_name": "탱크아케이드",
+  "name": "탱크탱크",
+  "short_name": "탱크탱크",
   "description": "미로 벽을 부수고 길을 뚫어 총 100 스테이지를 돌파하는 탱크 아케이드 게임",
   "start_url": "./index.html",
   "scope": "./",

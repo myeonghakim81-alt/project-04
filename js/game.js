@@ -569,30 +569,241 @@
     }
   }
 
-  // ---- 타이틀 / 난이도 선택 화면 배경 (탱크 히어로 샷) ----
-  let titleGrid = null;
-  function renderTitleBackground() {
-    if (!titleGrid) titleGrid = createMaze(4242, 0.42);
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    ctx.fillStyle = '#11151f';
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    drawMaze(ctx, titleGrid);
+  // ---- 타이틀 / 난이도 선택 화면 배경 (실제 교전이 벌어지는 액션 데모 컷) ----
+  // 가만히 있는 그림 대신, 플레이어 탱크가 순찰하며 발사하고 벽이 터지고
+  // 적 탱크가 격파/재등장을 반복하는 미니 시뮬레이션을 별도로 돌려 보여준다.
+  // (실제 게임 상태(game.*)와는 완전히 분리되어 있어 진행 중인 판에 영향 없음)
+  const TITLE_TANK_VISUAL_MUL = 1.5;
+  let titleScene = null;
 
-    const t = performance.now() / 1000;
-    const angle = -Math.PI / 2 + Math.sin(t * 0.5) * 0.4;
+  function buildTitlePatrolPath(margin) {
+    return [
+      { x: margin, y: margin },
+      { x: PLAY_W - margin, y: margin },
+      { x: PLAY_W - margin, y: PLAY_H - margin },
+      { x: margin, y: PLAY_H - margin },
+    ];
+  }
+
+  function spawnTitleBurst(scene, x, y, color, count, speed, life) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = speed * (0.4 + Math.random() * 0.8);
+      scene.particles.push({
+        x, y,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s,
+        life, maxLife: life,
+        color,
+        size: 2 + Math.random() * 3,
+      });
+    }
+  }
+
+  function respawnTitleEnemy(scene, enemy) {
+    const margin = 55;
+    enemy.x = margin + Math.random() * (PLAY_W - margin * 2);
+    enemy.y = margin + Math.random() * (PLAY_H - margin * 2);
+    enemy.angle = Math.random() * Math.PI * 2;
+    enemy.dir = { x: Math.cos(enemy.angle), y: Math.sin(enemy.angle) };
+    enemy.wanderT = 0.6 + Math.random() * 1.2;
+    enemy.alive = true;
+    enemy.respawnT = 0;
+  }
+
+  function initTitleScene() {
+    const kinds = [ENEMY_KINDS.basic, ENEMY_KINDS.sniper, ENEMY_KINDS.rusher];
+    const scene = {
+      grid: createMaze(Math.floor(Math.random() * 1e9), 0.4),
+      brokenCount: 0,
+      ageT: 0,
+      path: buildTitlePatrolPath(76),
+      segIndex: 0,
+      segT: 0,
+      player: { x: 76, y: 76, angle: 0, fireT: 0.5 + Math.random() * 0.5, recoil: 0 },
+      enemies: kinds.map((k) => ({
+        color: k.color, colorDark: k.colorDark,
+        x: 0, y: 0, angle: 0, dir: { x: 0, y: 0 }, wanderT: 0, alive: true, respawnT: 0,
+      })),
+      bullets: [],
+      particles: [],
+      shake: 0,
+    };
+    scene.enemies.forEach((e) => respawnTitleEnemy(scene, e));
+    titleScene = scene;
+  }
+
+  function updateTitleScene(dt) {
+    let scene = titleScene;
+    scene.ageT += dt;
+    // 벽이 너무 많이 부서지거나 일정 시간이 지나면 새 미로로 교체해 계속 신선하게 유지
+    if (scene.ageT > 20 || scene.brokenCount > 14) {
+      const kept = { enemies: scene.enemies, segIndex: scene.segIndex, segT: scene.segT };
+      initTitleScene();
+      scene = titleScene;
+      scene.enemies = kept.enemies;
+      scene.segIndex = kept.segIndex;
+      scene.segT = kept.segT;
+    }
+
+    if (scene.shake > 0) scene.shake = Math.max(0, scene.shake - dt * 3.2);
+    if (scene.player.recoil > 0) scene.player.recoil = Math.max(0, scene.player.recoil - dt * 4);
+
+    // 플레이어 탱크: 사각 순찰 경로를 따라 이동, 코너에서는 즉시 방향 전환
+    const path = scene.path;
+    const a = path[scene.segIndex];
+    const b = path[(scene.segIndex + 1) % path.length];
+    const segLen = Math.hypot(b.x - a.x, b.y - a.y);
+    scene.segT += (110 * dt) / segLen;
+    if (scene.segT >= 1) {
+      scene.segT -= 1;
+      scene.segIndex = (scene.segIndex + 1) % path.length;
+    }
+    const na = path[scene.segIndex];
+    const nb = path[(scene.segIndex + 1) % path.length];
+    scene.player.x = na.x + (nb.x - na.x) * scene.segT;
+    scene.player.y = na.y + (nb.y - na.y) * scene.segT;
+    scene.player.angle = Math.atan2(nb.y - na.y, nb.x - na.x);
+
+    scene.player.fireT -= dt;
+    if (scene.player.fireT <= 0) {
+      scene.player.fireT = 0.8 + Math.random() * 0.5;
+      scene.player.recoil = 1;
+      const bx = scene.player.x + Math.cos(scene.player.angle) * 20;
+      const by = scene.player.y + Math.sin(scene.player.angle) * 20;
+      scene.bullets.push({
+        x: bx, y: by,
+        vx: Math.cos(scene.player.angle) * 380,
+        vy: Math.sin(scene.player.angle) * 380,
+      });
+      spawnTitleBurst(scene, bx, by, '#eaf5ec', 4, 55, 0.15);
+    }
+
+    // 적 탱크: 랜덤 배회, 격파되면 잠시 후 다른 위치에 재등장 (사격 연습 타겟처럼)
+    for (const e of scene.enemies) {
+      if (!e.alive) {
+        e.respawnT -= dt;
+        if (e.respawnT <= 0) respawnTitleEnemy(scene, e);
+        continue;
+      }
+      e.wanderT -= dt;
+      if (e.wanderT <= 0) {
+        e.angle = Math.random() * Math.PI * 2;
+        e.dir = { x: Math.cos(e.angle), y: Math.sin(e.angle) };
+        e.wanderT = 0.7 + Math.random() * 1.1;
+      }
+      const margin = 50;
+      e.x = Math.min(PLAY_W - margin, Math.max(margin, e.x + e.dir.x * 42 * dt));
+      e.y = Math.min(PLAY_H - margin, Math.max(margin, e.y + e.dir.y * 42 * dt));
+    }
+
+    // 총알: 이동, 벽/적 충돌 처리 (부서진 벽·격파 이펙트 생성)
+    scene.bullets = scene.bullets.filter((bl) => {
+      bl.x += bl.vx * dt;
+      bl.y += bl.vy * dt;
+      if (bl.x < 0 || bl.y < 0 || bl.x > PLAY_W || bl.y > PLAY_H) return false;
+
+      const c = Math.floor(bl.x / TILE);
+      const r = Math.floor(bl.y / TILE);
+      const cell = r >= 0 && c >= 0 && r < ROWS && c < COLS ? scene.grid[r][c] : WALL_SOLID;
+      if (cell === WALL_SOLID) return false;
+      if (cell === WALL_BREAKABLE) {
+        scene.grid[r][c] = WALL_NONE;
+        scene.brokenCount++;
+        scene.shake = Math.max(scene.shake, 0.5);
+        spawnTitleBurst(scene, c * TILE + TILE / 2, r * TILE + TILE / 2, '#c97a3d', 10, 90, 0.4);
+        return false;
+      }
+
+      for (const e of scene.enemies) {
+        if (!e.alive) continue;
+        if (Math.hypot(bl.x - e.x, bl.y - e.y) < 20) {
+          e.alive = false;
+          e.respawnT = 1.1 + Math.random() * 0.6;
+          scene.shake = 1;
+          spawnTitleBurst(scene, e.x, e.y, e.color, 16, 130, 0.5);
+          spawnTitleBurst(scene, e.x, e.y, '#ffd23f', 6, 70, 0.3);
+          return false;
+        }
+      }
+      return true;
+    });
+
+    scene.particles = scene.particles.filter((p) => {
+      p.life -= dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.94;
+      p.vy *= 0.94;
+      return p.life > 0;
+    });
+  }
+
+  function drawTitleTank(x, y, angle, color, colorDark) {
     ctx.save();
-    ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
-    ctx.scale(2.6, 2.6);
-    drawTankShape(ctx, 0, 0, angle, '#3ddc84', '#1f7a44');
+    ctx.translate(x, y);
+    ctx.scale(TITLE_TANK_VISUAL_MUL, TITLE_TANK_VISUAL_MUL);
+    drawTankShape(ctx, 0, 0, angle, color, colorDark);
+    ctx.restore();
+  }
+
+  function renderTitleBackground(dt) {
+    if (!titleScene) initTitleScene();
+    updateTitleScene(dt);
+    const scene = titleScene;
+
+    ctx.save();
+    if (scene.shake > 0) {
+      const mag = scene.shake * 9;
+      ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+    }
+
+    ctx.fillStyle = '#11151f';
+    ctx.fillRect(-16, -16, CANVAS_W + 32, CANVAS_H + 32);
+    drawMaze(ctx, scene.grid);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of scene.particles) {
+      const t = Math.max(0, p.life / p.maxLife);
+      ctx.globalAlpha = t;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.4 + t), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
     ctx.restore();
 
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    for (const bl of scene.bullets) {
+      ctx.fillStyle = '#eaf5ec';
+      ctx.beginPath();
+      ctx.arc(bl.x, bl.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (const e of scene.enemies) {
+      if (!e.alive) continue;
+      drawTitleTank(e.x, e.y, e.angle, e.color, e.colorDark);
+    }
+
+    const p = scene.player;
+    const recoilScale = 1 + p.recoil * 0.12;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(recoilScale, recoilScale);
+    drawTitleTank(0, 0, p.angle, '#3ddc84', '#1f7a44');
+    ctx.restore();
+
+    ctx.restore();
+
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   }
 
-  function render() {
+  function render(dt) {
     if (game.state === 'TITLE' || game.state === 'DIFFICULTY_SELECT') {
-      renderTitleBackground();
+      renderTitleBackground(dt);
       return;
     }
 
@@ -620,7 +831,7 @@
     const dt = Math.min(0.05, (now - lastTime) / 1000);
     lastTime = now;
     update(dt);
-    render();
+    render(dt);
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
